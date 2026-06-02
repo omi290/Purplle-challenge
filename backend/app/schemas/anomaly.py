@@ -13,9 +13,12 @@ class AnomalyBase(BaseModel):
     threshold_value: Optional[float] = None
     zone_name: Optional[str] = None
     resolved: bool = False
+    manager_feedback: Optional[str] = None
+    disagreed: bool = False
 
 class AnomalyResponse(AnomalyBase):
     id: int
+    ai_recommendation: Optional[dict] = None
 
     class Config:
         from_attributes = True

@@ -20,6 +20,20 @@ def calculate_store_health_score(db: Session) -> dict:
         metrics = get_analytics_metrics(db)
         leakage = get_revenue_leakage_metrics(db)
         
+        if metrics.get("unique_visitors", 0) == 0:
+            return {
+                "overall_score": 0.0,
+                "grade": "N/A",
+                "components": {
+                    "conversion_rate": {"score": 0.0, "weight": 0.25},
+                    "dwell_quality": {"score": 0.0, "weight": 0.20},
+                    "queue_efficiency": {"score": 0.0, "weight": 0.20},
+                    "zone_utilization": {"score": 0.0, "weight": 0.15},
+                    "anomaly_rate": {"score": 0.0, "weight": 0.10},
+                    "revenue_efficiency": {"score": 0.0, "weight": 0.10}
+                }
+            }
+        
         # 1. Conversion Rate Score (Weight: 0.25)
         # Standard conversion target is 35% (0.35)
         conv = metrics.get("conversion_rate", 0.0)
@@ -109,4 +123,3 @@ def calculate_store_health_score(db: Session) -> dict:
                 "revenue_efficiency": {"score": 60.0, "weight": 0.10}
             }
         }
- Maroon = calculate_store_health_score

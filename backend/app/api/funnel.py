@@ -40,20 +40,22 @@ def get_conversion_funnel(
     ).scalar() or 0
 
     # Stage 2: Browse (any ZONE_ENTER in browse type zones)
-    browse_count = db.query(func.count(func.distinct(Event.visitor_id))).filter(
+    browse_count = db.query(func.count(func.distinct(Event.visitor_id))).join(Visitor, Event.visitor_id == Visitor.id).filter(
         Event.event_type == "ZONE_ENTER",
         Event.zone_name.in_(["Skincare", "Makeup", "Fragrance & Hair"]),
         Event.timestamp >= start_time,
-        Event.timestamp <= end_time
+        Event.timestamp <= end_time,
+        Visitor.is_staff == False
     ).scalar() or 0
     # Ensure browse <= entry
     browse_count = min(entry_count, browse_count)
 
     # Stage 3: Billing Queue
-    billing_count = db.query(func.count(func.distinct(Event.visitor_id))).filter(
+    billing_count = db.query(func.count(func.distinct(Event.visitor_id))).join(Visitor, Event.visitor_id == Visitor.id).filter(
         Event.event_type == "BILLING_QUEUE_JOIN",
         Event.timestamp >= start_time,
-        Event.timestamp <= end_time
+        Event.timestamp <= end_time,
+        Visitor.is_staff == False
     ).scalar() or 0
     # Ensure billing <= browse
     billing_count = min(browse_count, billing_count)

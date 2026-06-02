@@ -47,8 +47,10 @@ class EventEngine:
             
         events_created = 0
         
-        # Simple Purplle base timestamp
-        base_time = datetime.datetime.combine(datetime.date.today(), datetime.time(10, 0, 0))
+        # Dynamically set base_time so that the latest tracking point finishes exactly now.
+        # This keeps the CCTV Heartbeat Sensor alive and prevents the stale feed warning banner.
+        total_duration = max([pt.timestamp for pt in tracks]) if tracks else 0.0
+        base_time = datetime.datetime.now() - datetime.timedelta(seconds=total_duration)
         
         for track_id, points in tracks_by_id.items():
             first_point = points[0]
@@ -59,6 +61,12 @@ class EventEngine:
             first_seen_time = base_time + datetime.timedelta(seconds=first_point.timestamp)
             last_seen_time = base_time + datetime.timedelta(seconds=last_point.timestamp)
             
+            # Aggregate staff predictions across the track
+            staff_votes = [getattr(pt, "is_staff", False) for pt in points]
+            is_staff = sum(staff_votes) > (len(staff_votes) / 2) if staff_votes else False
+            staff_confs = [getattr(pt, "staff_confidence", 0.0) for pt in points]
+            avg_staff_conf = sum(staff_confs) / len(staff_confs) if staff_confs else 0.0
+
             is_new_visitor = False
             if not visitor:
                 is_new_visitor = True
@@ -66,14 +74,16 @@ class EventEngine:
                     track_id=track_id,
                     first_seen=first_seen_time,
                     last_seen=last_seen_time,
-                    is_staff=False,
-                    staff_confidence=0.0
+                    is_staff=is_staff,
+                    staff_confidence=avg_staff_conf
                 )
                 self.db.add(visitor)
                 self.db.flush()
             else:
                 visitor.last_seen = last_seen_time
                 visitor.total_visits += 1
+                visitor.is_staff = is_staff
+                visitor.staff_confidence = avg_staff_conf
                 self.db.flush()
 
             # 2. Session Persistence

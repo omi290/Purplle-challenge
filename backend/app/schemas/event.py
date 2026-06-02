@@ -20,6 +20,8 @@ class EventCreate(EventBase):
 
 class EventResponse(EventBase):
     id: int
+    confidence_score: Optional[float] = None
+    confidence_level: Optional[str] = None
 
     class Config:
         from_attributes = True

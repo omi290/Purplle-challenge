@@ -4,7 +4,7 @@ import HeatmapGrid from '../components/HeatmapGrid';
 import { getHeatmap } from '../api/client';
 import { Flame, Clock, Users, ShieldCheck } from 'lucide-react';
 
-export default function Heatmap() {
+export default function Heatmap({ onUploadClick }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +28,7 @@ export default function Heatmap() {
   const zones = data?.zones || [];
 
   return (
-    <Layout title="Layout Heatmap Analysis">
+    <Layout title="Layout Heatmap Analysis" onUploadClick={onUploadClick}>
       <div className="space-y-8">
         {/* Heatmap Grid Panel */}
         <HeatmapGrid heatmapData={data} />

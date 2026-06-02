@@ -60,6 +60,17 @@ export default function Dashboard({ onUploadClick }) {
 
   return (
     <Layout title="Operations Live Console" onUploadClick={onUploadClick}>
+      {/* 0. STALE FEED HEARTBEAT BANNER */}
+      {data?.feed_status?.stale_feed && (
+        <div className="flex items-center gap-3 p-4 mb-6 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs font-semibold animate-pulse shadow-[0_0_20px_rgba(244,63,94,0.1)]">
+          <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" />
+          <div className="flex-1">
+            <span className="font-extrabold uppercase tracking-wider text-rose-400 block mb-0.5">CAMERA FEED STATUS STALE</span>
+            <span>No CCTV video event ingested for <span className="font-extrabold text-white bg-rose-600/40 px-1.5 py-0.5 rounded border border-rose-500/20">{data?.feed_status?.minutes_since_last_event} minutes</span>. Real-time store analytics metrics are paused. Please audit camera stream connection or trigger a video processing job.</span>
+          </div>
+        </div>
+      )}
+
       {/* 1. Metric Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <MetricCard

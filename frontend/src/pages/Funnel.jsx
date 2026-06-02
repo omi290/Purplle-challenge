@@ -4,7 +4,7 @@ import FunnelChart from '../components/FunnelChart';
 import { getFunnel } from '../api/client';
 import { ArrowRightCircle, AlertCircle, ShoppingBag, ShieldCheck } from 'lucide-react';
 
-export default function Funnel() {
+export default function Funnel({ onUploadClick }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +28,7 @@ export default function Funnel() {
   const stages = data?.stages || [];
 
   return (
-    <Layout title="Conversion Funnel Analysis">
+    <Layout title="Conversion Funnel Analysis" onUploadClick={onUploadClick}>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Side: Funnel Chart Visualization */}
         <div className="lg:col-span-2 space-y-6">

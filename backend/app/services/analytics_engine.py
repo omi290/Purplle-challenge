@@ -23,10 +23,11 @@ def get_analytics_metrics(db: Session, start_date: datetime.date = None, end_dat
     end_time = datetime.datetime.combine(end_date, datetime.time.max)
 
     # 1. Total Footfall (ENTRY events)
-    footfall = db.query(Event).filter(
+    footfall = db.query(Event).join(Visitor, Event.visitor_id == Visitor.id).filter(
         Event.event_type == "ENTRY",
         Event.timestamp >= start_time,
-        Event.timestamp <= end_time
+        Event.timestamp <= end_time,
+        Visitor.is_staff == False
     ).count()
 
     # 2. Unique Visitors
@@ -54,9 +55,10 @@ def get_analytics_metrics(db: Session, start_date: datetime.date = None, end_dat
         conversion_rate = min(1.0, total_txns / unique_visitors)
 
     # 5. Average dwell time
-    avg_dwell = db.query(func.avg(StoreSession.duration_seconds)).filter(
+    avg_dwell = db.query(func.avg(StoreSession.duration_seconds)).join(Visitor, StoreSession.visitor_id == Visitor.id).filter(
         StoreSession.entry_time >= start_time,
-        StoreSession.entry_time <= end_time
+        StoreSession.entry_time <= end_time,
+        Visitor.is_staff == False
     ).scalar() or 0.0
 
     # 6. Revenue per visitor
@@ -70,15 +72,17 @@ def get_analytics_metrics(db: Session, start_date: datetime.date = None, end_dat
         rev_per_visitor = total_rev / unique_visitors
 
     # 7. Bounce rate (visitors who exit within 60s or didn't browse any zone)
-    bounces = db.query(func.count(StoreSession.id)).filter(
+    bounces = db.query(func.count(StoreSession.id)).join(Visitor, StoreSession.visitor_id == Visitor.id).filter(
         StoreSession.entry_time >= start_time,
         StoreSession.entry_time <= end_time,
-        StoreSession.duration_seconds < 60.0
+        StoreSession.duration_seconds < 60.0,
+        Visitor.is_staff == False
     ).scalar() or 0
 
-    total_sessions = db.query(func.count(StoreSession.id)).filter(
+    total_sessions = db.query(func.count(StoreSession.id)).join(Visitor, StoreSession.visitor_id == Visitor.id).filter(
         StoreSession.entry_time >= start_time,
-        StoreSession.entry_time <= end_time
+        StoreSession.entry_time <= end_time,
+        Visitor.is_staff == False
     ).scalar() or 0
 
     bounce_rate = 0.0
@@ -89,10 +93,11 @@ def get_analytics_metrics(db: Session, start_date: datetime.date = None, end_dat
     hourly_query = db.query(
         func.extract('hour', Event.timestamp).label('hour'),
         func.count(Event.id).label('count')
-    ).filter(
+    ).join(Visitor, Event.visitor_id == Visitor.id).filter(
         Event.event_type == "ENTRY",
         Event.timestamp >= start_time,
-        Event.timestamp <= end_time
+        Event.timestamp <= end_time,
+        Visitor.is_staff == False
     ).group_by('hour').all()
 
     peak_hours = [{"hour": int(h), "count": count} for h, count in hourly_query]
@@ -105,10 +110,11 @@ def get_analytics_metrics(db: Session, start_date: datetime.date = None, end_dat
         Event.zone_name,
         func.count(func.distinct(Event.visitor_id)).label('visitors'),
         func.avg(Event.confidence).label('conf')
-    ).filter(
+    ).join(Visitor, Event.visitor_id == Visitor.id).filter(
         Event.event_type == "ZONE_ENTER",
         Event.timestamp >= start_time,
-        Event.timestamp <= end_time
+        Event.timestamp <= end_time,
+        Visitor.is_staff == False
     ).group_by(Event.zone_name).all()
 
     zone_metrics = []
@@ -119,10 +125,11 @@ def get_analytics_metrics(db: Session, start_date: datetime.date = None, end_dat
             continue
         
         # Calculate average dwell in this zone
-        avg_dwell_zone = db.query(func.avg(StoreSession.max_dwell_seconds)).filter(
+        avg_dwell_zone = db.query(func.avg(StoreSession.max_dwell_seconds)).join(Visitor, StoreSession.visitor_id == Visitor.id).filter(
             StoreSession.max_dwell_zone == name,
             StoreSession.entry_time >= start_time,
-            StoreSession.entry_time <= end_time
+            StoreSession.entry_time <= end_time,
+            Visitor.is_staff == False
         ).scalar() or 0.0
 
         zone_metrics.append({

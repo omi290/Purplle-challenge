@@ -85,7 +85,19 @@ def test_get_heatmap(client):
     assert "zones" in data
     assert len(data["zones"]) > 0
 
-def test_get_anomalies(client):
+def test_get_anomalies(client, db):
+    from app.models.anomaly import Anomaly
+    
+    # Pre-populate a test anomaly to verify endpoint retrieval structure
+    test_anomaly = Anomaly(
+        anomaly_type="queue_spike",
+        severity="high",
+        description="Critical billing queue build-up detected.",
+        suggested_action='{"recommendation": "Deploy express checkout counter.", "confidence": 0.92, "reasoning": "Queue length > 8 people", "expected_business_impact": "Reduce abandonment"}'
+    )
+    db.add(test_anomaly)
+    db.commit()
+
     response = client.get("/api/anomalies")
     assert response.status_code == 200
     data = response.json()

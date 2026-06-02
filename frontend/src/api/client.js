@@ -252,3 +252,21 @@ export const triggerProcessing = async () => {
   const res = await api.post('/upload/process');
   return res.data;
 };
+
+export const getRevenueLeakage = async () => {
+  try {
+    const res = await api.get('/revenue-leakage');
+    return res.data;
+  } catch (err) {
+    return demoDashboard.revenue_leakage;
+  }
+};
+
+export const getOpportunityLoss = async () => {
+  try {
+    const res = await api.get('/opportunity-loss');
+    return res.data;
+  } catch (err) {
+    return demoDashboard.opportunity_loss;
+  }
+};

@@ -41,16 +41,31 @@ def get_heatmap(
     zones_list = parse_store_layout(layout_file)
 
     # Query distinct visitor counts per zone
+    from app.models.visitor import Visitor
     visitor_query = db.query(
         Event.zone_name,
         func.count(func.distinct(Event.visitor_id)).label('count')
-    ).filter(
+    ).join(Visitor, Event.visitor_id == Visitor.id).filter(
         Event.event_type == "ZONE_ENTER",
         Event.timestamp >= start_time,
-        Event.timestamp <= end_time
+        Event.timestamp <= end_time,
+        Visitor.is_staff == False
     ).group_by(Event.zone_name).all()
 
     visitor_counts = {zone_name: count for zone_name, count in visitor_query}
+
+    # Query average detection confidence per zone
+    confidence_query = db.query(
+        Event.zone_name,
+        func.avg(Event.confidence).label('avg_conf')
+    ).join(Visitor, Event.visitor_id == Visitor.id).filter(
+        Event.event_type == "ZONE_ENTER",
+        Event.timestamp >= start_time,
+        Event.timestamp <= end_time,
+        Visitor.is_staff == False
+    ).group_by(Event.zone_name).all()
+
+    zone_confidences = {zone_name: float(avg_conf or 0.88) for zone_name, avg_conf in confidence_query}
 
     heatmap_zones = []
     max_visitors = 1
@@ -60,32 +75,33 @@ def get_heatmap(
             continue
             
         vis_count = visitor_counts.get(zone.name, 0)
-        
-        # Simple simulated minimums for visual appeal in case of empty DB
-        if vis_count == 0:
-            if zone.name == "Entrance": vis_count = 120
-            elif zone.name == "Skincare": vis_count = 85
-            elif zone.name == "Makeup": vis_count = 95
-            elif zone.name == "Fragrance & Hair": vis_count = 45
-            elif zone.name == "Billing": vis_count = 72
             
         if vis_count > max_visitors:
             max_visitors = vis_count
 
         # Average Dwell inside zone
-        avg_dwell = db.query(func.avg(StoreSession.max_dwell_seconds)).filter(
+        avg_dwell = db.query(func.avg(StoreSession.max_dwell_seconds)).join(Visitor, StoreSession.visitor_id == Visitor.id).filter(
             StoreSession.max_dwell_zone == zone.name,
             StoreSession.entry_time >= start_time,
-            StoreSession.entry_time <= end_time
+            StoreSession.entry_time <= end_time,
+            Visitor.is_staff == False
         ).scalar() or 0.0
-        
-        # Fallback dwell times for visuals
-        if avg_dwell == 0.0:
-            if zone.name == "Entrance": avg_dwell = 15.0
-            elif zone.name == "Skincare": avg_dwell = 180.0
-            elif zone.name == "Makeup": avg_dwell = 240.0
-            elif zone.name == "Fragrance & Hair": avg_dwell = 120.0
-            elif zone.name == "Billing": avg_dwell = 90.0
+
+        # Calculate session count for data_confidence grading
+        session_count = db.query(func.count(StoreSession.id)).join(Visitor, StoreSession.visitor_id == Visitor.id).filter(
+            StoreSession.max_dwell_zone == zone.name,
+            StoreSession.entry_time >= start_time,
+            StoreSession.entry_time <= end_time,
+            Visitor.is_staff == False
+        ).scalar() or 0
+
+        # Determine confidence level string
+        if session_count < 20:
+            conf_str = "LOW"
+        elif session_count <= 50:
+            conf_str = "MEDIUM"
+        else:
+            conf_str = "HIGH"
 
         heatmap_zones.append(HeatmapZone(
             zone_name=zone.name,
@@ -93,6 +109,7 @@ def get_heatmap(
             visitor_count=vis_count,
             avg_dwell_seconds=round(float(avg_dwell), 1),
             intensity=0.0,  # Will calculate intensity below
+            data_confidence=conf_str,
             coordinates=HeatmapZoneCoordinates(
                 x1=zone.x1,
                 y1=zone.y1,

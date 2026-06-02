@@ -2,6 +2,7 @@ import pytest
 import datetime
 
 def test_full_operational_flow(client):
+    today_str = datetime.date.today().isoformat()
     # 1. Ingest customer arrival
     payload_arrival = {
         "events": [
@@ -9,7 +10,7 @@ def test_full_operational_flow(client):
                 "event_type": "ENTRY",
                 "track_id": "cust_99",
                 "zone_name": "Entrance",
-                "timestamp": "2026-04-10T10:00:00",
+                "timestamp": f"{today_str}T10:00:00",
                 "confidence": 0.95,
                 "bbox_x": 0.1, "bbox_y": 0.1, "bbox_w": 0.1, "bbox_h": 0.2
             }
@@ -25,7 +26,7 @@ def test_full_operational_flow(client):
                 "event_type": "ZONE_ENTER",
                 "track_id": "cust_99",
                 "zone_name": "Makeup",
-                "timestamp": "2026-04-10T10:02:00",
+                "timestamp": f"{today_str}T10:02:00",
                 "confidence": 0.93,
                 "bbox_x": 0.7, "bbox_y": 0.5, "bbox_w": 0.1, "bbox_h": 0.2
             }

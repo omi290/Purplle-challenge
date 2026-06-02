@@ -13,6 +13,7 @@ class HeatmapZone(BaseModel):
     visitor_count: int
     avg_dwell_seconds: float
     intensity: float
+    data_confidence: str
     coordinates: HeatmapZoneCoordinates
 
 class HeatmapResponse(BaseModel):

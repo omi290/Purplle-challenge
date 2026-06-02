@@ -26,8 +26,11 @@ class SystemHealthResponse(BaseModel):
     version: str
     uptime_seconds: float
     database: str
+    feed_status: str
     last_event_time: Optional[datetime] = None
     total_events: int
+    stale_feed: bool = False
+    minutes_since_last_event: Optional[float] = None
     store_health: StoreHealth
     revenue_leakage: RevenueLeakage
     opportunity_loss: OpportunityLoss

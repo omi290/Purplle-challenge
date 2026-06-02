@@ -1,5 +1,6 @@
 import os
 import datetime
+import logging
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
@@ -109,6 +110,18 @@ def background_video_processing(video_path: str, layout_path: str, db_session: S
     try:
         logger = logging.getLogger(__name__)
         logger.info(f"Background task starting: processing video {video_path}")
+        
+        # Clear database to prevent blending metrics between different video uploads
+        from app.models.anomaly import Anomaly
+        from app.models.metrics_cache import MetricsCache
+        
+        logger.info("Wiping existing events, anomalies, sessions, visitors, and metrics cache to ensure a clean slate.")
+        db_session.query(Event).delete()
+        db_session.query(Anomaly).delete()
+        db_session.query(StoreSession).delete()
+        db_session.query(Visitor).delete()
+        db_session.query(MetricsCache).delete()
+        db_session.commit()
         
         # 1. Run CV tracking pipeline
         tracked_detections = process_video_file(video_path)

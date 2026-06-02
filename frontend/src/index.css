@@ -87,3 +87,90 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #8b5cf6;
 }
+
+/* HIGH-FIDELITY PDF PRINT STYLES */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-family: 'Outfit', sans-serif !important;
+  }
+  
+  /* Hide non-printable navigation components */
+  aside, header, button, .no-print {
+    display: none !important;
+  }
+  
+  /* Reset layout constraints for paper sizing */
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: transparent !important;
+  }
+  
+  /* Adjust glassmorphism elements to flat clean print items */
+  .glass {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border: 1px solid #d1d5db !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-radius: 12px !important;
+  }
+  
+  /* Dark cards to light printable boxes */
+  .bg-gray-900\/40, .bg-gray-800\/40, .bg-\[\#030712\]\/60, .bg-gray-950\/60 {
+    background: #f9fafb !important;
+    border: 1px solid #e5e7eb !important;
+    color: #111827 !important;
+  }
+
+  /* Force print color visibility */
+  .text-white, .text-gray-300, .text-gray-400, .text-gray-500 {
+    color: #1f2937 !important;
+  }
+  
+  .text-purple-400, .text-purple-300 {
+    color: #6d28d9 !important; /* Rich deep purple */
+  }
+  
+  .text-cyan-400, .text-cyan-300 {
+    color: #0369a1 !important; /* Deep sky blue */
+  }
+  
+  .text-emerald-400, .text-emerald-500 {
+    color: #047857 !important; /* Deep emerald */
+  }
+
+  .text-rose-400, .text-rose-500 {
+    color: #b91c1c !important; /* Deep red */
+  }
+  
+  /* Layout columns expansion */
+  .grid {
+    display: grid !important;
+    grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+    gap: 1.5rem !important;
+  }
+  
+  .lg\:col-span-1 {
+    grid-column: span 4 / span 4 !important;
+  }
+  
+  .lg\:col-span-2 {
+    grid-column: span 8 / span 8 !important;
+  }
+  
+  .sm\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .grid-cols-1 {
+    grid-template-columns: 1fr !important;
+  }
+}

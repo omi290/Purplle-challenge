@@ -21,3 +21,17 @@ class Event(Base):
 
     visitor = relationship("Visitor", back_populates="events")
     session = relationship("Session", back_populates="events")
+
+    @property
+    def confidence_score(self) -> float:
+        return self.confidence
+
+    @property
+    def confidence_level(self) -> str:
+        if self.confidence < 0.65:
+            return "LOW"
+        elif self.confidence < 0.85:
+            return "MEDIUM"
+        else:
+            return "HIGH"
+

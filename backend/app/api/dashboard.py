@@ -29,59 +29,62 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
         Anomaly.detected_at.desc()
     ).limit(5).all()
 
-    # If anomalies table is completely empty, insert standard demo entries
-    if not recent_anomalies:
-        an1 = Anomaly(
-            anomaly_type="queue_spike",
-            severity="high",
-            description="Billing queue length spike detected. Current queue size is 11 people.",
-            suggested_action="Open additional billing counter. Current queue exceeds optimal threshold of 8 people.",
-            confidence=0.91,
-            metric_value=11.0,
-            threshold_value=8.0,
-            zone_name="Billing"
-        )
-        db.add(an1)
-        db.commit()
-        recent_anomalies = [an1]
+    # No seeding in REAL-DATA-FIRST mode. Anomalies remain clean empty lists if empty.
 
-    # Quick mock hourly footfall trend for visual completeness (last 12 hours)
+    # Dynamic hourly footfall trend (last 12 hours)
     now_hour = datetime.datetime.now().hour
     hourly_trend = []
-    base_footfall = [15, 22, 35, 45, 52, 60, 48, 55, 68, 75, 40, 30]
     
     # Try to load actual hourly counts from database
     start_time = datetime.datetime.combine(today, datetime.time.min)
     end_time = datetime.datetime.combine(today, datetime.time.max)
+    from app.models.visitor import Visitor
     actual_hourly = db.query(
         func.extract('hour', Event.timestamp).label('hour'),
         func.count(Event.id).label('count')
-    ).filter(
+    ).join(Visitor, Event.visitor_id == Visitor.id).filter(
         Event.event_type == "ENTRY",
         Event.timestamp >= start_time,
-        Event.timestamp <= end_time
+        Event.timestamp <= end_time,
+        Visitor.is_staff == False
     ).group_by('hour').all()
     
     actual_hours = {int(h): c for h, c in actual_hourly}
 
     for i in range(12):
         target_hour = (now_hour - 11 + i) % 24
-        count = actual_hours.get(target_hour, base_footfall[i])
+        count = actual_hours.get(target_hour, 0)  # No base_footfall fallback in REAL-DATA-FIRST
         hourly_trend.append({
             "hour": f"{target_hour:02d}:00",
             "footfall": count,
-            "staff": metrics.get("staff_count", 5)
+            "staff": metrics.get("staff_count", 0)
         })
 
     # Conversion Funnel Summary
+    unique_v = metrics["unique_visitors"]
     funnel_summary = {
         "stages": [
-            {"name": "Entry", "count": metrics["unique_visitors"], "percentage": 100.0},
-            {"name": "Browse", "count": int(metrics["unique_visitors"] * 0.85), "percentage": 85.0},
-            {"name": "Billing Queue", "count": int(metrics["unique_visitors"] * 0.40), "percentage": 40.0},
-            {"name": "Purchase", "count": int(metrics["unique_visitors"] * metrics["conversion_rate"]), "percentage": round(metrics["conversion_rate"]*100, 1)}
+            {"name": "Entry", "count": unique_v, "percentage": 100.0 if unique_v > 0 else 0.0},
+            {"name": "Browse", "count": int(unique_v * 0.85) if unique_v > 0 else 0, "percentage": 85.0 if unique_v > 0 else 0.0},
+            {"name": "Billing Queue", "count": int(unique_v * 0.40) if unique_v > 0 else 0, "percentage": 40.0 if unique_v > 0 else 0.0},
+            {"name": "Purchase", "count": int(unique_v * metrics["conversion_rate"]) if unique_v > 0 else 0, "percentage": round(metrics["conversion_rate"]*100, 1) if unique_v > 0 else 0.0}
         ]
     }
+
+    # Check STALE_FEED status
+    stale_feed = False
+    minutes_since_last_event = 99.0
+    try:
+        last_evt = db.query(Event).order_by(Event.timestamp.desc()).first()
+        if last_evt:
+            time_age = (datetime.datetime.now() - last_evt.timestamp).total_seconds()
+            minutes_since_last_event = round(time_age / 60.0, 1)
+            if time_age > 600.0:
+                stale_feed = True
+        else:
+            stale_feed = True
+    except Exception:
+        stale_feed = True
 
     return {
         "metrics": {
@@ -95,6 +98,10 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
         "store_health": health,
         "revenue_leakage": leakage,
         "opportunity_loss": opportunity,
+        "feed_status": {
+            "stale_feed": stale_feed,
+            "minutes_since_last_event": minutes_since_last_event
+        },
         "recent_anomalies": [
             {
                 "id": a.id,
@@ -102,6 +109,7 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
                 "severity": a.severity,
                 "description": a.description,
                 "suggested_action": a.suggested_action,
+                "ai_recommendation": a.ai_recommendation,
                 "detected_at": a.detected_at,
                 "confidence": a.confidence,
                 "resolved": a.resolved
@@ -112,6 +120,7 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
             {
                 "anomaly_type": a.anomaly_type,
                 "suggestion": a.suggested_action,
+                "ai_recommendation": a.ai_recommendation,
                 "severity": a.severity,
                 "confidence": a.confidence
             }

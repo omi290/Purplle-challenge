@@ -13,7 +13,7 @@ import StoreHealthScore from '../components/StoreHealthScore';
 import { getHealth } from '../api/client';
 import { Activity, ShieldCheck, Heart, ShieldAlert } from 'lucide-react';
 
-export default function HealthMonitoring() {
+export default function HealthMonitoring({ onUploadClick }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -46,7 +46,7 @@ export default function HealthMonitoring() {
   ];
 
   return (
-    <Layout title="System Health & Diagnostics">
+    <Layout title="System Health & Diagnostics" onUploadClick={onUploadClick}>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Large composite health gauge */}
@@ -112,6 +112,20 @@ export default function HealthMonitoring() {
               <div className="p-3.5 bg-gray-800/40 border border-gray-700/40 rounded-xl flex items-center justify-between">
                 <span className="text-gray-400 font-semibold">Computer Vision Pipeline</span>
                 <span className="text-purple-400 font-bold uppercase">Active</span>
+              </div>
+
+              {/* Camera Feed Heartbeat */}
+              <div className="p-3.5 bg-gray-800/40 border border-gray-700/40 rounded-xl flex items-center justify-between">
+                <span className="text-gray-400 font-semibold">Camera Feed Heartbeat</span>
+                {data.feed_status === 'live' ? (
+                  <span className="px-2.5 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full font-bold uppercase tracking-wider">
+                    Live
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-full font-bold uppercase tracking-wider animate-pulse">
+                    STALE_FEED
+                  </span>
+                )}
               </div>
             </div>
           </div>

@@ -16,7 +16,7 @@ import Layout from '../components/Layout';
 import { getMetrics } from '../api/client';
 import { BarChart3, Users, Clock, ShoppingBag } from 'lucide-react';
 
-export default function Analytics() {
+export default function Analytics({ onUploadClick }) {
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,7 +47,7 @@ export default function Analytics() {
   ];
 
   return (
-    <Layout title="Retail Intelligence Analytics">
+    <Layout title="Retail Intelligence Analytics" onUploadClick={onUploadClick}>
       <div className="space-y-8">
         
         {/* Hourly footfalls and Staff vs Customer rows */}

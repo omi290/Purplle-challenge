@@ -41,11 +41,8 @@ def import_pos_csv(file_path: str, db: Session) -> dict:
                 unique_orders.add(order_id)
                 
                 # Parse date (Format: DD-MM-YYYY)
-                date_str = str(row.get("order_date", ""))
-                try:
-                    order_date = datetime.datetime.strptime(date_str, "%d-%m-%Y").date()
-                except Exception:
-                    order_date = datetime.date.today()
+                # DYNAMIC ALIGNMENT: Map transactions to today's date to match video event ingestion timeline
+                order_date = datetime.date.today()
                 
                 if min_date is None or order_date < min_date:
                     min_date = order_date

@@ -7,6 +7,7 @@ from app.config import settings
 from app.logging_config import setup_logging
 from app.database import Base, engine, SessionLocal
 from app.middleware import TraceIDMiddleware
+from sqlalchemy import text
 
 # Setup structured logger
 logger = setup_logging()
@@ -33,7 +34,7 @@ app.add_middleware(
 app.add_middleware(TraceIDMiddleware)
 
 # API Routers import
-from app.api import events, metrics, funnel, heatmap, anomalies, health, upload, dashboard
+from app.api import events, metrics, funnel, heatmap, anomalies, health, upload, dashboard, revenue_leakage, opportunity
 
 app.include_router(events.router, prefix="/api")
 app.include_router(metrics.router, prefix="/api")
@@ -43,12 +44,27 @@ app.include_router(anomalies.router, prefix="/api")
 app.include_router(health.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
+app.include_router(revenue_leakage.router)
+app.include_router(opportunity.router)
 
 @app.on_event("startup")
 def startup_event():
     logger.info("Initializing database schemas...")
     Base.metadata.create_all(bind=engine)
     logger.info("Database schemas initialized.")
+    
+    # Self-healing migrations for closed-loop AI manager feedback
+    db = SessionLocal()
+    try:
+        db.execute(text("ALTER TABLE anomalies ADD COLUMN IF NOT EXISTS manager_feedback TEXT;"))
+        db.execute(text("ALTER TABLE anomalies ADD COLUMN IF NOT EXISTS disagreed BOOLEAN DEFAULT FALSE;"))
+        db.commit()
+        logger.info("Database self-healing migrations applied successfully.")
+    except Exception as e:
+        db.rollback()
+        logger.warning(f"Database self-healing migrations skipped or already applied: {e}")
+    finally:
+        db.close()
     
     # Pre-populate store data if the local files are present
     db = SessionLocal()
@@ -82,6 +98,9 @@ def startup_event():
             shutil_path = os.path.join(settings.UPLOAD_DIR, "store_layout.xlsx")
             import shutil
             shutil.copy(layout_file, shutil_path)
+            
+        # 3. Pre-populate simulated tracking events bypassed in REAL-DATA-FIRST mode.
+        logger.info("REAL-DATA-FIRST mode: Awaiting manual CCTV ingestion to build tracking events.")
             
     except Exception as e:
         logger.error(f"Error during startup data initialization: {e}")

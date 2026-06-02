@@ -4,50 +4,59 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.session import Session as StoreSession
 from app.models.transaction import Transaction
+from app.models.event import Event
+from app.models.visitor import Visitor
 
 logger = logging.getLogger(__name__)
 
 def get_revenue_leakage_metrics(db: Session) -> dict:
     """
-    Computes Revenue Leakage Meter:
-    - Analyzes sessions that entered the billing area.
-    - Compares unique visitors at checkout against actual POS sales.
-    - Estimates missed revenue due to queue abandonment or checkout leakage.
+    Computes advanced Revenue Leakage Meter:
+    - Lost Customers = Count of checkout queue abandonments (BILLING_QUEUE_ABANDON events)
+    - Average Order Value (AOV) = Actual POS sales amount divided by transaction count
+    - Potential Revenue Lost = Lost Customers * Avg Basket Value
+    - Recoverable Revenue = Potential Revenue Lost * 50%
+    - Top Revenue Loss Zone = Zone with most abandonments ("Billing")
     """
-    # Get total POS sales today
+    today_start = datetime.datetime.combine(datetime.date.today(), datetime.time.min)
+
+    # 1. Average Order Value (AOV) from actual transactions
     total_sales = db.query(func.sum(Transaction.total_amount)).scalar() or 0.0
     total_orders = db.query(func.count(func.distinct(Transaction.order_id))).scalar() or 0
     
-    # Average order value (AOV)
     aov = 0.0
     if total_orders > 0:
         aov = total_sales / total_orders
     else:
-        aov = 450.0  # Fallback Purplle average cosmetic purchase value
+        aov = 450.0  # Fallback Purplle national cosmetics average purchase value
 
-    # Count unique visitors who entered the Billing area
-    billing_visitors = db.query(func.count(func.distinct(StoreSession.visitor_id))).filter(
-        StoreSession.max_dwell_zone == "Billing"
-    ).scalar() or 0
+    # 2. Lost Customers (checkout abandonments today)
+    lost_customers = db.query(Event).join(Visitor, Event.visitor_id == Visitor.id).filter(
+        Event.event_type == "BILLING_QUEUE_ABANDON",
+        Event.timestamp >= today_start,
+        Visitor.is_staff == False
+    ).count()
 
-    # Leakage calculation: visitors who reached billing but did not purchase
-    leaked_visitors = max(0, billing_visitors - total_orders)
-    
-    # Leaked Revenue = Leaked Visitors * Average Order Value
-    estimated_leaked_revenue = leaked_visitors * aov
-    
-    # Potential Revenue = Actual Sales + Leaked Revenue
-    potential_revenue = total_sales + estimated_leaked_revenue
-    
+    # 3. Formula: Revenue Leakage = Queue Abandonments * AOV
+    potential_revenue_lost = lost_customers * aov
+
+    # 4. Recoverable Revenue (50% target recovery)
+    recoverable_revenue = potential_revenue_lost * 0.50
+
+    # 5. Leakage Rate = Leakage / (Actual Sales + Leakage)
+    potential_total_revenue = total_sales + potential_revenue_lost
     leakage_rate = 0.0
-    if potential_revenue > 0:
-        leakage_rate = estimated_leaked_revenue / potential_revenue
+    if potential_total_revenue > 0:
+        leakage_rate = potential_revenue_lost / potential_total_revenue
 
     return {
+        "lost_customers": lost_customers,
+        "average_basket_value": round(aov, 2),
+        "potential_revenue_lost": round(potential_revenue_lost, 2),
+        "top_revenue_loss_zone": "Billing",
+        "recoverable_revenue": round(recoverable_revenue, 2),
         "leakage_rate": round(leakage_rate, 4),
-        "estimated_leaked_revenue": round(estimated_leaked_revenue, 2),
-        "potential_total_revenue": round(potential_revenue, 2),
-        "average_order_value": round(aov, 2),
-        "leaked_visitors_count": leaked_visitors,
+        "estimated_leaked_revenue": round(potential_revenue_lost, 2),  # Backward compatibility
+        "potential_total_revenue": round(potential_total_revenue, 2),   # Backward compatibility
         "actual_sales": round(total_sales, 2)
     }

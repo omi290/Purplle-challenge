@@ -5,7 +5,7 @@ import AnomalyTable from '../components/AnomalyTable';
 import { getAnomalies, getDashboard } from '../api/client';
 import { Brain, Sparkles, History, ShieldAlert } from 'lucide-react';
 
-export default function AIInsights() {
+export default function AIInsights({ onUploadClick }) {
   const [anomalies, setAnomalies] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +30,7 @@ export default function AIInsights() {
   }
 
   return (
-    <Layout title="AI Suggested Actions">
+    <Layout title="AI Suggested Actions" onUploadClick={onUploadClick}>
       <div className="space-y-8">
         
         {/* Suggested actions grids */}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Flame, Clock, Users } from 'lucide-react';
+import { Flame, Clock, Users, ShieldCheck } from 'lucide-react';
 
 export default function HeatmapGrid({ heatmapData }) {
   const zones = heatmapData?.zones || [];
@@ -59,7 +59,16 @@ export default function HeatmapGrid({ heatmapData }) {
                   onClick={() => setSelectedZone(zone)}
                   className={`border rounded-lg p-3 transition-all duration-300 cursor-pointer flex flex-col justify-between text-left hover:scale-[1.01] hover:brightness-110 active:scale-95 ${activeColor}`}
                 >
-                  <span className="text-xs font-bold truncate tracking-tight uppercase block leading-none">{zone.zone_name}</span>
+                  <div className="flex items-center justify-between gap-1 w-full">
+                    <span className="text-xs font-bold truncate tracking-tight uppercase block leading-none">{zone.zone_name}</span>
+                    <span className={`px-1 py-0.5 rounded-[4px] border text-[7px] font-black uppercase tracking-widest leading-none shrink-0 ${
+                      zone.data_confidence === 'HIGH' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
+                      zone.data_confidence === 'MEDIUM' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
+                      'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
+                    }`}>
+                      {zone.data_confidence}
+                    </span>
+                  </div>
                   <div className="flex items-center justify-between text-[10px] font-semibold opacity-80 mt-1">
                     <span className="flex items-center gap-0.5"><Users className="w-3 h-3" />{zone.visitor_count}</span>
                     <span className="flex items-center gap-0.5"><Clock className="w-3 h-3" />{Math.round(zone.avg_dwell_seconds / 60)}m</span>
@@ -97,6 +106,21 @@ export default function HeatmapGrid({ heatmapData }) {
                     <span className="text-xs font-semibold text-gray-300">Avg Dwell Duration</span>
                   </div>
                   <span className="text-sm font-bold text-white">{Math.round(selectedZone.avg_dwell_seconds / 60)} min {Math.round(selectedZone.avg_dwell_seconds % 60)}s</span>
+                </div>
+
+                {/* CV Data Confidence propagation */}
+                <div className="flex items-center justify-between p-3 bg-gray-800/40 border border-gray-700/50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs font-semibold text-gray-300">CV Data Confidence</span>
+                  </div>
+                  <span className={`text-xs font-black px-2 py-0.5 rounded border ${
+                    selectedZone.data_confidence === 'HIGH' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
+                    selectedZone.data_confidence === 'MEDIUM' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' :
+                    'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
+                  }`}>
+                    {selectedZone.data_confidence}
+                  </span>
                 </div>
               </div>
             </div>

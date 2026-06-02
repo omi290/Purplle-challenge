@@ -57,8 +57,44 @@ export default function RevenueLeakageMeter({ leakageData }) {
       </div>
 
       {/* Potential Earnings Summary */}
-      <div className="border-t border-gray-800/60 pt-4 mt-2">
-        <div className="flex items-center justify-between text-xs">
+      <div className="border-t border-gray-800/60 pt-4 mt-2 space-y-3">
+        {/* Core Metrics Grid */}
+        <div className="grid grid-cols-3 gap-2 text-center border-b border-gray-800/40 pb-3">
+          <div className="bg-gray-900/40 border border-gray-800 p-2 rounded-lg">
+            <span className="text-[8px] uppercase font-bold text-gray-500 block">Lost Customers</span>
+            <span className="text-xs font-black text-rose-400 mt-1 block">{leakageData?.lost_customers || 0}</span>
+          </div>
+          <div className="bg-gray-900/40 border border-gray-800 p-2 rounded-lg">
+            <span className="text-[8px] uppercase font-bold text-gray-500 block">Avg Basket</span>
+            <span className="text-xs font-black text-white mt-1 block">₹{Math.round(leakageData?.average_basket_value || 450)}</span>
+          </div>
+          <div className="bg-gray-900/40 border border-gray-800 p-2 rounded-lg">
+            <span className="text-[8px] uppercase font-bold text-gray-500 block">Recoverable</span>
+            <span className="text-xs font-black text-cyan-400 mt-1 block">₹{Math.round(leakageData?.recoverable_revenue || 0)}</span>
+          </div>
+        </div>
+
+        {/* Top Cause & Action */}
+        <div className="space-y-1.5">
+          <div className="flex items-start gap-1 text-[9px] font-semibold">
+            <span className="text-red-400 font-bold uppercase shrink-0">Top Cause:</span>
+            <span className="text-gray-400 font-normal">
+              {leakageData?.lost_customers > 0 
+                ? "Queue bottleneck at checkout zone during peak retail traffic." 
+                : "Checkout operations running at 100% conversion efficiency."}
+            </span>
+          </div>
+          <div className="flex items-start gap-1 text-[9px] font-semibold">
+            <span className="text-cyan-400 font-bold uppercase shrink-0">Suggested Action:</span>
+            <span className="text-gray-300 font-normal">
+              {leakageData?.lost_customers > 0 
+                ? "Deploy active queue-busting salesperson or open express counter 3." 
+                : "Maintain current cashier staffing levels and monitoring."}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between text-xs pt-1">
           <span className="text-gray-400 font-medium flex items-center gap-1">
             <Coins className="w-4 h-4 text-cyan-400" />
             <span>Potential Revenue Pool</span>
@@ -68,9 +104,6 @@ export default function RevenueLeakageMeter({ leakageData }) {
             <span>{potentialVal.toLocaleString('en-IN')}</span>
           </span>
         </div>
-        <p className="text-[10px] text-gray-500 mt-2 leading-relaxed">
-          Leakage indicates visitors who joined the checkout queue area but left without a correlating POS transaction occurring.
-        </p>
       </div>
     </div>
   );

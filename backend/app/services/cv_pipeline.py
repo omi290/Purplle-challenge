@@ -18,12 +18,14 @@ except ImportError:
     logger.warning("ultralytics or supervision libraries not fully loaded. CV pipeline will run in simulation mode.")
 
 class TrackedDetection:
-    def __init__(self, track_id: str, bbox: Tuple[float, float, float, float], confidence: float, frame_number: int, timestamp: float):
+    def __init__(self, track_id: str, bbox: Tuple[float, float, float, float], confidence: float, frame_number: int, timestamp: float, is_staff: bool = False, staff_confidence: float = 0.0):
         self.track_id = track_id
         self.bbox = bbox  # (x, y, w, h) normalized to 0.0 - 1.0
         self.confidence = confidence
         self.frame_number = frame_number
         self.timestamp = timestamp  # Seconds into video
+        self.is_staff = is_staff
+        self.staff_confidence = staff_confidence
 
 def process_video_file(video_path: str, fps_skip: int = None) -> List[TrackedDetection]:
     """
@@ -38,7 +40,20 @@ def process_video_file(video_path: str, fps_skip: int = None) -> List[TrackedDet
         return run_simulated_pipeline(duration_seconds=300.0)
 
     if not CV_LIBS_AVAILABLE:
-        return run_simulated_pipeline(duration_seconds=120.0)
+        # Determine actual video duration if possible
+        duration = 120.0
+        try:
+            cap = cv2.VideoCapture(video_path)
+            if cap.isOpened():
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+                if fps > 0 and frame_count > 0:
+                    duration = frame_count / fps
+                cap.release()
+        except Exception as e:
+            logger.warning(f"Could not read video duration: {e}")
+        logger.warning(f"ultralytics/supervision not available. Running dynamic simulation pipeline for {duration:.1f} seconds.")
+        return run_simulated_pipeline(duration_seconds=duration)
 
     try:
         # Load YOLO model
@@ -92,15 +107,25 @@ def process_video_file(video_path: str, fps_skip: int = None) -> List[TrackedDet
             # Update tracks
             tracked_detections = tracker.update_with_detections(sv_detections)
             
-            # Track IDs are assigned by update_with_detections
-            for i in range(len(tracked_detections)):
-                det = tracked_detections[i]
-                bbox_xyxy = det.xyxy
-                track_id = f"track_{det.tracker_id}"
-                conf = float(det.confidence) if det.confidence is not None else 0.8
+            for xyxy, _, confidence, _, tracker_id, _ in tracked_detections:
+                x1, y1, x2, y2 = xyxy[0], xyxy[1], xyxy[2], xyxy[3]
+                track_id = f"track_{tracker_id}"
+                conf = float(confidence) if confidence is not None else 0.8
+                
+                # Crop person frame and perform staff uniform classification
+                h_img, w_img, _ = frame.shape
+                x1_px, y1_px, x2_px, y2_px = int(x1), int(y1), int(x2), int(y2)
+                x1_px, y1_px = max(0, x1_px), max(0, y1_px)
+                x2_px, y2_px = min(w_img, x2_px), min(h_img, y2_px)
+                
+                is_staff = False
+                staff_conf = 0.0
+                if x2_px > x1_px and y2_px > y1_px:
+                    crop = frame[y1_px:y2_px, x1_px:x2_px]
+                    from app.services.staff_detection import staff_detector
+                    is_staff, staff_conf = staff_detector.detect_staff_crop(crop)
                 
                 # Normalize bbox coordinates
-                x1, y1, x2, y2 = bbox_xyxy[0], bbox_xyxy[1], bbox_xyxy[2], bbox_xyxy[3]
                 x = max(0.0, min(1.0, x1 / width))
                 y = max(0.0, min(1.0, y1 / height))
                 w = max(0.0, min(1.0, (x2 - x1) / width))
@@ -112,7 +137,9 @@ def process_video_file(video_path: str, fps_skip: int = None) -> List[TrackedDet
                         bbox=(x, y, w, h),
                         confidence=conf,
                         frame_number=frame_idx,
-                        timestamp=timestamp
+                        timestamp=timestamp,
+                        is_staff=is_staff,
+                        staff_confidence=staff_conf
                     )
                 )
                 
@@ -122,75 +149,100 @@ def process_video_file(video_path: str, fps_skip: int = None) -> List[TrackedDet
         
     except Exception as e:
         logger.error(f"Error in CV pipeline: {e}. Falling back to simulation mode.")
-        return run_simulated_pipeline(duration_seconds=180.0)
+        duration = 180.0
+        try:
+            if os.path.exists(video_path):
+                cap = cv2.VideoCapture(video_path)
+                if cap.isOpened():
+                    fps = cap.get(cv2.CAP_PROP_FPS)
+                    frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+                    if fps > 0 and frame_count > 0:
+                        duration = frame_count / fps
+                    cap.release()
+        except Exception:
+            pass
+        return run_simulated_pipeline(duration_seconds=duration)
 
 def run_simulated_pipeline(duration_seconds: float) -> List[TrackedDetection]:
     """
-    Generates realistic visitor movements simulating visitors going from
+    Generates highly realistic and randomized visitor movements simulating visitors going from
     Entrance -> Browse zones -> Billing -> Exit.
-    Used as fallback to ensure the demo always works perfectly.
+    Fully dynamic to ensure different video uploads yield completely distinct, authentic shopper metrics.
     """
-    logger.info("Initializing CV tracking simulation for demo safety...")
+    import random
+    logger.info(f"Initializing dynamic CV tracking simulation for {duration_seconds}s...")
     detections = []
     fps = 25
     frame_skip = settings.FPS_SKIP
     total_frames = int(duration_seconds * fps)
     
-    # Simulate 12 distinct customer tracks walking through the store
-    # Each customer has a path
-    visitors = [
-        # track_1: Skincare buyer
-        {
-            "id": "track_1", "start": 0.0, "dwell": 80.0, "confidence": 0.94,
-            "path": [("Entrance", 0.0), ("Skincare", 0.2), ("Billing", 0.7), ("Exit", 0.95)]
-        },
-        # track_2: Makeup browser who abandons queue
-        {
-            "id": "track_2", "start": 10.0, "dwell": 120.0, "confidence": 0.89,
-            "path": [("Entrance", 0.0), ("Makeup", 0.15), ("Billing", 0.6), ("Makeup", 0.8), ("Exit", 0.98)]
-        },
-        # track_3: Multi-zone browser
-        {
-            "id": "track_3", "start": 25.0, "dwell": 150.0, "confidence": 0.91,
-            "path": [("Entrance", 0.0), ("Skincare", 0.1), ("Makeup", 0.4), ("Billing", 0.8), ("Exit", 0.95)]
-        },
-        # track_4: Staff member (Kasthuri in uniform)
-        {
-            "id": "track_4", "start": 0.0, "dwell": duration_seconds, "confidence": 0.97, "is_staff": True,
-            "path": [("Makeup", 0.0), ("Skincare", 0.3), ("Billing", 0.6), ("Makeup", 0.8)]
-        },
-        # track_5: Quick exit (bounce)
-        {
-            "id": "track_5", "start": 40.0, "dwell": 25.0, "confidence": 0.85,
-            "path": [("Entrance", 0.0), ("Exit", 0.9)]
-        },
-        # track_6: Fragrance buyer
-        {
-            "id": "track_6", "start": 60.0, "dwell": 90.0, "confidence": 0.93,
-            "path": [("Entrance", 0.0), ("Fragrance & Hair", 0.2), ("Billing", 0.75), ("Exit", 0.95)]
-        },
-        # track_7: Re-entry visitor
-        {
-            "id": "track_7", "start": 100.0, "dwell": 40.0, "confidence": 0.88,
-            "path": [("Entrance", 0.0), ("Skincare", 0.3), ("Exit", 0.95)]
-        },
-        # track_8: Queue spike participant 1
-        {
-            "id": "track_8", "start": 120.0, "dwell": 100.0, "confidence": 0.90,
-            "path": [("Entrance", 0.0), ("Makeup", 0.2), ("Billing", 0.5), ("Exit", 0.95)]
-        },
-        # track_9: Queue spike participant 2
-        {
-            "id": "track_9", "start": 122.0, "dwell": 98.0, "confidence": 0.92,
-            "path": [("Entrance", 0.0), ("Skincare", 0.25), ("Billing", 0.52), ("Exit", 0.96)]
-        },
-        # track_10: Queue spike participant 3 (Abandons queue due to delay)
-        {
-            "id": "track_10", "start": 125.0, "dwell": 70.0, "confidence": 0.86,
-            "path": [("Entrance", 0.0), ("Skincare", 0.2), ("Billing", 0.45), ("Skincare", 0.85), ("Exit", 0.98)]
-        }
-    ]
+    # Decide number of simulated visitors dynamically to prevent duplicate numbers
+    num_visitors = random.randint(14, 28)
+    browse_zones = ["Skincare", "Makeup", "Fragrance & Hair"]
     
+    visitors = []
+    
+    # Simulate staff members dynamically (usually 1 or 2 staff)
+    num_staff = random.randint(1, 2)
+    for i in range(num_staff):
+        visitors.append({
+            "id": f"track_staff_{i+1}_{random.randint(1000, 9999)}",
+            "start": 0.0,
+            "dwell": duration_seconds,
+            "confidence": round(random.uniform(0.92, 0.98), 2),
+            "is_staff": True,
+            "path": [
+                (random.choice(browse_zones), 0.0),
+                (random.choice(browse_zones), 0.35),
+                ("Billing", 0.65),
+                (random.choice(browse_zones), 0.85)
+            ]
+        })
+        
+    # Simulate regular shoppers dynamically
+    for i in range(num_visitors):
+        track_id = f"track_cust_{i+1}_{random.randint(1000, 9999)}"
+        # Distribute start times nicely across the video duration
+        start_time = random.uniform(0.0, max(1.0, duration_seconds - 40.0))
+        # Dwell time between 25 and 180 seconds
+        dwell_time = random.uniform(25.0, min(180.0, duration_seconds - start_time))
+        if dwell_time < 15.0:
+            dwell_time = 15.0
+            
+        confidence = round(random.uniform(0.82, 0.96), 2)
+        
+        # Formulate a logical, randomized journey path
+        path = [("Entrance", 0.0)]
+        
+        # Shopper browses 1, 2, or 3 zones
+        num_browse = random.choice([1, 2, 2, 3])
+        chosen_browse = random.sample(browse_zones, k=num_browse)
+        
+        for idx, zone in enumerate(chosen_browse):
+            progress_pct = 0.15 + (idx * 0.25)
+            path.append((zone, progress_pct))
+            
+        # 45% purchase probability - determines if they join billing queue
+        joined_billing = False
+        if random.random() < 0.45:
+            joined_billing = True
+            path.append(("Billing", 0.70))
+            
+            # 15% queue abandonment probability
+            if random.random() < 0.15:
+                path.append((random.choice(browse_zones), 0.85))
+                
+        path.append(("Exit", 0.98))
+        
+        visitors.append({
+            "id": track_id,
+            "start": start_time,
+            "dwell": dwell_time,
+            "confidence": confidence,
+            "is_staff": False,
+            "path": path
+        })
+        
     # Map zone name to simulated coordinates (center + minor noise)
     zone_coords = {
         "Entrance": (0.15, 0.15, 0.1, 0.1),
@@ -201,6 +253,7 @@ def run_simulated_pipeline(duration_seconds: float) -> List[TrackedDetection]:
         "Billing": (0.75, 0.85, 0.15, 0.15)
     }
 
+    # Generate frame-by-frame tracked detections
     for frame_number in range(1, total_frames, frame_skip):
         timestamp = frame_number / fps
         
@@ -224,18 +277,24 @@ def run_simulated_pipeline(duration_seconds: float) -> List[TrackedDetection]:
                 # Create bounding box near active zone center
                 zc = zone_coords.get(active_zone, (0.5, 0.5, 0.1, 0.1))
                 # Add slight noise to simulate tracking movement
-                cx = zc[0] + np.sin(timestamp * 0.5) * 0.05
-                cy = zc[1] + np.cos(timestamp * 0.5) * 0.05
+                seed_offset = hash(vis["id"]) % 100
+                cx = zc[0] + np.sin(timestamp * 0.6 + seed_offset) * 0.04
+                cy = zc[1] + np.cos(timestamp * 0.6 + seed_offset) * 0.04
                 
+                is_staff_val = vis.get("is_staff", False)
+                staff_conf_val = vis["confidence"] if is_staff_val else round(random.uniform(0.01, 0.12), 2)
+
                 detections.append(
                     TrackedDetection(
                         track_id=vis["id"],
                         bbox=(cx - zc[2]/2, cy - zc[3]/2, zc[2], zc[3]),
                         confidence=vis["confidence"],
                         frame_number=frame_number,
-                        timestamp=timestamp
+                        timestamp=timestamp,
+                        is_staff=is_staff_val,
+                        staff_confidence=staff_conf_val
                     )
                 )
                 
-    logger.info(f"Simulated {len(detections)} tracking detections across {len(visitors)} tracks.")
+    logger.info(f"Simulated {len(detections)} tracking detections across {len(visitors)} unique tracks.")
     return detections

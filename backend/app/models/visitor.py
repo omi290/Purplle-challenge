@@ -16,3 +16,18 @@ class Visitor(Base):
 
     sessions = relationship("Session", back_populates="visitor", cascade="all, delete-orphan")
     events = relationship("Event", back_populates="visitor", cascade="all, delete-orphan")
+
+    @property
+    def confidence_score(self) -> float:
+        return self.staff_confidence if self.staff_confidence is not None else 1.0
+
+    @property
+    def confidence_level(self) -> str:
+        conf = self.staff_confidence if self.staff_confidence is not None else 1.0
+        if conf < 0.65:
+            return "LOW"
+        elif conf < 0.85:
+            return "MEDIUM"
+        else:
+            return "HIGH"
+

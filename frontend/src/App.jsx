@@ -8,6 +8,7 @@ import Heatmap from './pages/Heatmap';
 import Analytics from './pages/Analytics';
 import AIInsights from './pages/AIInsights';
 import HealthMonitoring from './pages/HealthMonitoring';
+import ExecutiveInsights from './pages/ExecutiveInsights';
 import { uploadVideo, uploadStoreLayout, uploadPosData, triggerProcessing } from './api/client';
 
 export default function App() {
@@ -99,11 +100,12 @@ export default function App() {
       <div className="relative">
         <Routes>
           <Route path="/" element={<Dashboard onUploadClick={() => setShowUploadModal(true)} />} />
-          <Route path="/funnel" element={<Funnel />} />
-          <Route path="/heatmap" element={<Heatmap />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/ai-insights" element={<AIInsights />} />
-          <Route path="/health" element={<HealthMonitoring />} />
+          <Route path="/funnel" element={<Funnel onUploadClick={() => setShowUploadModal(true)} />} />
+          <Route path="/heatmap" element={<Heatmap onUploadClick={() => setShowUploadModal(true)} />} />
+          <Route path="/analytics" element={<Analytics onUploadClick={() => setShowUploadModal(true)} />} />
+          <Route path="/executive" element={<ExecutiveInsights onUploadClick={() => setShowUploadModal(true)} />} />
+          <Route path="/ai-insights" element={<AIInsights onUploadClick={() => setShowUploadModal(true)} />} />
+          <Route path="/health" element={<HealthMonitoring onUploadClick={() => setShowUploadModal(true)} />} />
         </Routes>
 
         {/* Gorgeous Upload Glassmorphism Modal */}

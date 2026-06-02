@@ -7,7 +7,8 @@ import {
   BarChart3, 
   Brain, 
   Activity, 
-  Eye
+  Eye,
+  TrendingUp
 } from 'lucide-react';
 
 const navItems = [
@@ -15,6 +16,7 @@ const navItems = [
   { path: '/funnel', label: 'Funnel Analysis', icon: Filter },
   { path: '/heatmap', label: 'Store Heatmap', icon: Flame },
   { path: '/analytics', label: 'Retail Analytics', icon: BarChart3 },
+  { path: '/executive', label: 'Executive Insights', icon: TrendingUp },
   { path: '/ai-insights', label: 'AI Suggested Actions', icon: Brain },
   { path: '/health', label: 'Health Monitoring', icon: Activity },
 ];
