@@ -1,0 +1,97 @@
+import os
+import logging
+from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from app.config import settings
+from app.logging_config import setup_logging
+from app.database import Base, engine, SessionLocal
+from app.middleware import TraceIDMiddleware
+
+# Setup structured logger
+logger = setup_logging()
+
+# FastAPI Initialization
+app = FastAPI(
+    title="Apex Retail Intelligence OS",
+    description="Convert CCTV footage into actionable retail store intelligence.",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# CORS Policy configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Core Middleware registration
+app.add_middleware(TraceIDMiddleware)
+
+# API Routers import
+from app.api import events, metrics, funnel, heatmap, anomalies, health, upload, dashboard
+
+app.include_router(events.router, prefix="/api")
+app.include_router(metrics.router, prefix="/api")
+app.include_router(funnel.router, prefix="/api")
+app.include_router(heatmap.router, prefix="/api")
+app.include_router(anomalies.router, prefix="/api")
+app.include_router(health.router, prefix="/api")
+app.include_router(upload.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api")
+
+@app.on_event("startup")
+def startup_event():
+    logger.info("Initializing database schemas...")
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database schemas initialized.")
+    
+    # Pre-populate store data if the local files are present
+    db = SessionLocal()
+    try:
+        # Search workspace directory for store files
+        search_dir = os.path.dirname(settings.UPLOAD_DIR)
+        
+        # 1. Look for POS CSV
+        pos_file = None
+        for f in os.listdir(search_dir):
+            if f.endswith(".csv") and "Brigade" in f:
+                pos_file = os.path.join(search_dir, f)
+                break
+                
+        if pos_file:
+            logger.info(f"Auto-importing POS data from {pos_file}...")
+            from app.services.pos_importer import import_pos_csv
+            import_pos_csv(pos_file, db)
+            
+        # 2. Look for layout XLSX
+        layout_file = None
+        for f in os.listdir(search_dir):
+            if f.endswith(".xlsx") and "layout" in f.lower():
+                layout_file = os.path.join(search_dir, f)
+                break
+                
+        if layout_file:
+            logger.info(f"Auto-registering store layout from {layout_file}...")
+            # Save a copy under standard upload folder inside container volume
+            os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+            shutil_path = os.path.join(settings.UPLOAD_DIR, "store_layout.xlsx")
+            import shutil
+            shutil.copy(layout_file, shutil_path)
+            
+    except Exception as e:
+        logger.error(f"Error during startup data initialization: {e}")
+    finally:
+        db.close()
+
+@app.get("/")
+def read_root():
+    return {
+        "status": "healthy",
+        "app": "Apex Retail Intelligence OS API",
+        "docs": "/docs"
+    }
