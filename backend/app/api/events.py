@@ -106,7 +106,17 @@ def ingest_events(payload: EventIngest, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=str(err))
 
-def background_video_processing(video_path: str, layout_path: str, db_session: Session):
+def background_video_processing(video_path: str, layout_path: str):
+    """
+    Background task that processes a CCTV video through the full retail intelligence pipeline.
+    Creates its own DB session since FastAPI's request-scoped session is closed by now.
+    """
+    # CRITICAL: Create an independent database session.
+    # FastAPI's Depends(get_db) closes the session when the HTTP response is sent,
+    # but BackgroundTasks run AFTER the response. Using the request session here
+    # causes silent SQLAlchemy errors and zero metrics.
+    from app.database import SessionLocal
+    db_session = SessionLocal()
     try:
         logger = logging.getLogger(__name__)
         logger.info(f"Background task starting: processing video {video_path}")
@@ -130,10 +140,16 @@ def background_video_processing(video_path: str, layout_path: str, db_session: S
         engine = EventEngine(db_session, layout_path)
         engine.process_tracks(tracked_detections)
         
+        # 3. Run anomaly detection on freshly generated events
+        from app.services.anomaly_engine import run_anomaly_check
+        run_anomaly_check(db_session)
+        
         logger.info(f"Background task completed: finished processing video {video_path}")
     except Exception as e:
         import traceback
         logging.error(f"Error in background video processing: {e}\n{traceback.format_exc()}")
+    finally:
+        db_session.close()
 
 @router.post("/process-video")
 def trigger_video_processing(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -153,7 +169,7 @@ def trigger_video_processing(background_tasks: BackgroundTasks, db: Session = De
                 layout_file = os.path.join(workspace_dir, f)
                 break
 
-    background_tasks.add_task(background_video_processing, video_path, layout_file, db)
+    background_tasks.add_task(background_video_processing, video_path, layout_file)
     return {
         "status": "processing_started",
         "video_file": os.path.basename(video_path),

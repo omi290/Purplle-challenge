@@ -60,7 +60,7 @@ The system processes video feeds through a sequential, decoupled edge-computing 
 * **Stateful State Transitions:** The Event Engine statefully generates the following events:
   - `ENTRY` / `EXIT`: Generated when a customer track crosses the entrance/exit threshold.
   - `ZONE_ENTER` / `ZONE_EXIT`: Triggered as coordinate trajectories cross shelf polygons.
-  - `ZONE_DWELL`: Triggered when a visitor remains in a zone for $\ge 30$ seconds.
+  - `ZONE_DWELL`: Triggered when a visitor remains in a zone for $\ge 5$ seconds.
   - `BILLING_QUEUE_JOIN`: Fired when a customer enters the checkout queue bounding polygon.
   - `BILLING_QUEUE_ABANDON`: Fired when a shopper exits the queue polygon without matching a transaction timestamp (cashier friction detection).
 

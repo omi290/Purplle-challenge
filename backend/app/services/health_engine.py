@@ -110,16 +110,4 @@ def calculate_store_health_score(db: Session) -> dict:
         }
     except Exception as e:
         logger.error(f"Error calculating store health score: {e}")
-        # Default fallback
-        return {
-            "overall_score": 75.0,
-            "grade": "B",
-            "components": {
-                "conversion_rate": {"score": 75.0, "weight": 0.25},
-                "dwell_quality": {"score": 80.0, "weight": 0.20},
-                "queue_efficiency": {"score": 70.0, "weight": 0.20},
-                "zone_utilization": {"score": 85.0, "weight": 0.15},
-                "anomaly_rate": {"score": 90.0, "weight": 0.10},
-                "revenue_efficiency": {"score": 60.0, "weight": 0.10}
-            }
-        }
+        raise e

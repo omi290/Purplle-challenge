@@ -8,6 +8,7 @@ from app.models.event import Event
 from app.models.session import Session as StoreSession
 from app.models.visitor import Visitor
 from app.services.recommendation_engine import get_ai_suggestion_structured, get_ai_suggestion_json
+from app.services.ai_agent import explain_anomaly_ai
 
 logger = logging.getLogger(__name__)
 
@@ -113,10 +114,11 @@ def run_anomaly_check(db: Session) -> int:
         
         if not existing:
             action_json = get_ai_suggestion_json("queue_spike", "Billing", float(current_queue_len), 8.0)
+            desc = explain_anomaly_ai("queue_spike", calculated_sev, float(current_queue_len), 8.0, "Billing")
             anomaly = Anomaly(
                 anomaly_type="queue_spike",
                 severity=calculated_sev,
-                description=f"Billing queue spike detected. Current queue size is {current_queue_len} shoppers.",
+                description=desc,
                 suggested_action=action_json,
                 detected_at=now,
                 confidence=0.94,
@@ -150,10 +152,11 @@ def run_anomaly_check(db: Session) -> int:
         
         if not existing:
             action_json = get_ai_suggestion_json("high_abandonment", "Billing", abandonment_rate, 0.15)
+            desc = explain_anomaly_ai("high_abandonment", calculated_sev, abandonment_rate, 0.15, "Billing")
             anomaly = Anomaly(
                 anomaly_type="high_abandonment",
                 severity=calculated_sev,
-                description=f"High queue abandonment rate of {abandonment_rate*100:.1f}%. Customers leaving checkout without purchase.",
+                description=desc,
                 suggested_action=action_json,
                 detected_at=now,
                 confidence=0.93,
@@ -201,10 +204,11 @@ def run_anomaly_check(db: Session) -> int:
             
             if not existing:
                 action_json = get_ai_suggestion_json("unusual_dwell", zone_name, float(avg_dur), 300.0)
+                desc = explain_anomaly_ai("unusual_dwell", "low", float(avg_dur), 300.0, zone_name)
                 anomaly = Anomaly(
                     anomaly_type="unusual_dwell",
                     severity="low",
-                    description=f"Unusual high dwell time detected in {zone_name} (avg {avg_dur/60:.1f} minutes). Check for congestion or confusion.",
+                    description=desc,
                     suggested_action=action_json,
                     detected_at=now,
                     confidence=0.85,
@@ -273,15 +277,13 @@ def run_anomaly_check(db: Session) -> int:
                     # Severity determination
                     if inactive_minutes >= 30.0:
                         severity = "critical"  # Zero activity in browse zone for 30+ minutes
-                        desc = f"CRITICAL DEAD ZONE: Zero customer activity in {bz} for the last {int(inactive_minutes)} minutes."
                     elif is_statistically_low:
                         severity = "high"
-                        desc = f"DEAD ZONE ALERT: {bz} attracted under 10% of store average zone traffic today ({traffic_count} shoppers)."
                     else:
                         severity = "low"
-                        desc = f"DEAD ZONE INFO: {bz} has low operational attraction rate today ({traffic_count} shoppers)."
 
                     ratio = traffic_count / total_uniques if total_uniques > 0 else 0.0
+                    desc = explain_anomaly_ai("dead_zone", severity, ratio, 0.10, bz)
                     action_json = get_ai_suggestion_json("dead_zone", bz, ratio, 0.10)
                     
                     anomaly = Anomaly(

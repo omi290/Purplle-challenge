@@ -70,6 +70,20 @@ def get_ai_suggestion_structured(
     - reasoning
     - expected_business_impact
     """
+    try:
+        from app.services.ai_agent import suggest_action_ai
+        ai_rec = suggest_action_ai(anomaly_type, "high", value, zone_name)
+        if ai_rec and ai_rec.get("recommendation"):
+            conf = ai_rec.get("confidence", ai_rec.get("confidence_score", 0.90))
+            return {
+                "recommendation": ai_rec["recommendation"],
+                "confidence": float(conf),
+                "reasoning": ai_rec.get("reasoning", "AI generated reasoning based on metric changes."),
+                "expected_business_impact": ai_rec.get("expected_business_impact", "AI estimated positive business impact.")
+            }
+    except Exception as e:
+        logger.warning(f"Error calling AI agent in suggestion generator: {e}")
+
     rec_template = RECOMMENDATIONS_STRUCTURED.get(
         anomaly_type,
         {

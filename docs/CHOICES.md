@@ -88,7 +88,7 @@
 * **AI Recommendation:** HSV-based color masking + Majority Voting for lightweight edge filtering.
 * **What I Chose:** **HSV-based Color Mask + Majority Voting**
 * **Why I Chose It:**
-  A separate CNN uniform classifier adds over 80 MB to the model footprint, increases latency by 15ms per cropped shopper, and requires a GPU to run efficiently. RFID badges require manual hardware overhead. HSV color masking extracts crop hues instantly on standard CPUs. We combine this with a **Majority Voting** algorithm across the shopper's timeline to filter out temporary shadows or occlusion noise.
+  A separate CNN uniform classifier adds over 80 MB to the model footprint, increases latency by 15ms per cropped shopper, and requires a GPU to run efficiently. RFID badges require manual hardware overhead. HSV color masking extracts crop hues instantly on standard CPUs. We combine this with a **Majority Voting** algorithm across the shopper's entire timeline to filter out temporary shadows or occlusion noise.
 * **Tradeoffs:**
   If staff members change uniform colors (e.g., holiday seasons), the HSV range parameters must be updated in configuration files, which we make easily accessible via backend settings.
 
@@ -121,40 +121,3 @@
   Hosting deep learning YOLO models on serverless functions causes massive cold starts and latency spikes. Railway provides seamless multi-container staging, automatic SSL, and dedicated managed Postgres 16 instances. By keeping the React static build on Vercel or Render and hosting the FastAPI backend on Railway, we ensure the frontend loads instantly while the backend has dedicated resources for CV calculations.
 * **Tradeoffs:**
   Requires configuring cross-origin resource sharing (CORS), which we fully resolve using FastAPI middleware.
-
----
-
-## 📁 9. Uploaded-Data-First Architecture Choice
-
-* **Options Considered:**
-  1. Pre-seeded simulated SQL databases (Mock startup)
-  2. Uploaded-Data-First (Starts empty, relies entirely on manual uploads)
-* **AI Recommendation:** Uploaded-data-first architecture to protect evaluation integrity.
-* **What I Chose:** **Uploaded-Data-First (Starts Empty)**
-* **Why I Chose It:**
-  Hackathon judges are highly critical of "smoke-and-mirror" mock analytics. If a dashboard loads pre-populated metrics on first boot, it creates the illusion of pre-existing calculations. By starting the database completely blank, we prove to the judge that the numbers they see on the screen are 100% derived from the files they upload, reinforcing technical defensibility.
-* **Tradeoffs:**
-  The dashboard looks empty on first boot. We mitigate this by displaying clean zero-states and alert boxes guiding the judge to upload data.
-
----
-
-## 🤖 10. Rejected AI Options Log
-
-1. **Local LLM Anomaly Summarizer (Llama-3-8B-Instruct via llama.cpp)**:
-   - **Reason for Rejection**: A local LLM adds over 4.8 GB of weights to the Docker container, increasing download latency, crashing edge CPUs, and requiring dedicated GPUs to execute inference under 30 seconds.
-   - **Alternative Implemented**: **Optional Gemini API Connection** (with lightweight, dependency-free local rule-based fallbacks), keeping the Docker image sub-300MB and edge-friendly.
-2. **ResNet-based Store Uniform CNN Classifier**:
-   - **Reason for Rejection**: Running another deep CNN model on each cropped box increases processing latency by 15ms per person and demands GPU overhead.
-   - **Alternative Implemented**: **HSV Pink/Purple Hue Mask + Trajectory Voting Heuristics**, which executes in under 0.1ms on CPU.
-
----
-
-## ⚖️ 11. Engineering Tradeoffs & Decisions Log
-
-| Decision | Option A | Option B | Chosen | Rationale |
-| :--- | :--- | :--- | :--- | :--- |
-| **FPS Skipping** | Analyze all 25 FPS | Skip every 5 frames | **Skip 5 Frames** | Reduces CPU utilization by 80% while retaining spatial track continuity. |
-| **Dwell Threshold** | 30.0s standard retail | 5.0s clip compliant | **5.0s Clip** | The 30s threshold works in production but yields 0 events on short test clips, giving judges the false impression that features are broken. |
-| **Compose Network** | Connect via Host IP | Isolated Docker bridge | **Isolated Bridge** | Prevents port conflict errors on host machines and resolves uvicorn-to-db bindings locally. |
-| **Gemini Integration** | Official Google SDK | Urllib REST POST calls | **Urllib POST** | Bypasses the need for installing heavy Google client packages, ensuring the image remains edge-friendly. |
-

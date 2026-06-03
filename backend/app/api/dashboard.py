@@ -60,14 +60,39 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
             "staff": metrics.get("staff_count", 0)
         })
 
-    # Conversion Funnel Summary
+    # Dynamic Funnel Summary
     unique_v = metrics["unique_visitors"]
+    from app.models.transaction import Transaction
+    
+    browse_count = db.query(func.count(func.distinct(Event.visitor_id))).join(Visitor, Event.visitor_id == Visitor.id).filter(
+        Event.event_type == "ZONE_ENTER",
+        Event.zone_name.in_(["Skincare", "Makeup", "Fragrance & Hair"]),
+        Event.timestamp >= start_time,
+        Event.timestamp <= end_time,
+        Visitor.is_staff == False
+    ).scalar() or 0
+    browse_count = min(unique_v, browse_count)
+
+    billing_count = db.query(func.count(func.distinct(Event.visitor_id))).join(Visitor, Event.visitor_id == Visitor.id).filter(
+        Event.event_type == "BILLING_QUEUE_JOIN",
+        Event.timestamp >= start_time,
+        Event.timestamp <= end_time,
+        Visitor.is_staff == False
+    ).scalar() or 0
+    billing_count = min(browse_count, billing_count)
+
+    purchase_count = db.query(func.count(func.distinct(Transaction.order_id))).filter(
+        Transaction.order_date >= today,
+        Transaction.order_date <= today
+    ).scalar() or 0
+    purchase_count = min(billing_count, purchase_count)
+
     funnel_summary = {
         "stages": [
             {"name": "Entry", "count": unique_v, "percentage": 100.0 if unique_v > 0 else 0.0},
-            {"name": "Browse", "count": int(unique_v * 0.85) if unique_v > 0 else 0, "percentage": 85.0 if unique_v > 0 else 0.0},
-            {"name": "Billing Queue", "count": int(unique_v * 0.40) if unique_v > 0 else 0, "percentage": 40.0 if unique_v > 0 else 0.0},
-            {"name": "Purchase", "count": int(unique_v * metrics["conversion_rate"]) if unique_v > 0 else 0, "percentage": round(metrics["conversion_rate"]*100, 1) if unique_v > 0 else 0.0}
+            {"name": "Browse", "count": browse_count, "percentage": round(browse_count / unique_v * 100.0, 1) if unique_v > 0 else 0.0},
+            {"name": "Billing Queue", "count": billing_count, "percentage": round(billing_count / unique_v * 100.0, 1) if unique_v > 0 else 0.0},
+            {"name": "Purchase", "count": purchase_count, "percentage": round(purchase_count / unique_v * 100.0, 1) if unique_v > 0 else 0.0}
         ]
     }
 
@@ -86,6 +111,10 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
     except Exception:
         stale_feed = True
 
+    # Dynamic AI Store Summary
+    from app.services.ai_agent import generate_store_summary_ai
+    ai_summary = generate_store_summary_ai(metrics, leakage, opportunity)
+
     return {
         "metrics": {
             "total_footfall": metrics["total_footfall"],
@@ -98,6 +127,7 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
         "store_health": health,
         "revenue_leakage": leakage,
         "opportunity_loss": opportunity,
+        "ai_store_summary": ai_summary,
         "feed_status": {
             "stale_feed": stale_feed,
             "minutes_since_last_event": minutes_since_last_event

@@ -68,3 +68,26 @@ def test_store_health_bounds(db):
     health = calculate_store_health_score(db)
     assert 0.0 <= health["overall_score"] <= 100.0
     assert "grade" in health
+
+def test_reentry_event_generation(db):
+    # Pre-insert a visitor in the database with the same track ID
+    visitor = Visitor(
+        track_id="track_reentry_test",
+        first_seen=datetime.datetime.now() - datetime.timedelta(hours=1),
+        last_seen=datetime.datetime.now() - datetime.timedelta(hours=1)
+    )
+    db.add(visitor)
+    db.commit()
+    
+    # Process tracks for the same visitor
+    engine = EventEngine(db, layout_path="nonexistent.xlsx")
+    tracks = [
+        TrackedDetection("track_reentry_test", (0.1, 0.1, 0.1, 0.1), 0.95, 1, 0.1),
+        TrackedDetection("track_reentry_test", (0.85, 0.15, 0.1, 0.1), 0.90, 50, 10.0)
+    ]
+    res = engine.process_tracks(tracks)
+    assert res["events_created"] > 0
+    
+    # Check if REENTRY event was generated
+    events = db.query(Event).filter(Event.event_type == "REENTRY").all()
+    assert len(events) > 0

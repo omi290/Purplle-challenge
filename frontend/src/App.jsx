@@ -68,7 +68,7 @@ export default function App() {
       // Reload page after a delay to show updated data
       setTimeout(() => {
         window.location.reload();
-      }, 2000);
+      }, 15000);
     } catch (err) {
       setStatuses(prev => ({ ...prev, process: 'error' }));
     }
@@ -86,12 +86,12 @@ export default function App() {
       setStatuses(prev => ({ ...prev, process: 'success' }));
       setTimeout(() => {
         window.location.reload();
-      }, 1500);
+      }, 12000);
     } catch (err) {
       setStatuses(prev => ({ ...prev, process: 'success' }));
       setTimeout(() => {
         window.location.reload();
-      }, 1500);
+      }, 12000);
     }
   };
 

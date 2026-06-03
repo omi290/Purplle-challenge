@@ -118,7 +118,7 @@ def trigger_full_processing(background_tasks: BackgroundTasks, db: Session = Dep
                 layout_path = os.path.join(search_dir, f)
                 break
 
-    background_tasks.add_task(background_video_processing, video_path, layout_path, db)
+    background_tasks.add_task(background_video_processing, video_path, layout_path)
     return {
         "status": "processing_started",
         "video_file": os.path.basename(video_path),

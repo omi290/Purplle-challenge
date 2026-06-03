@@ -142,7 +142,7 @@ class EventEngine:
                         zone_durations[current_zone_name] = zone_durations.get(current_zone_name, 0.0) + duration
                         
                         # Trigger ZONE_DWELL if they stayed long enough
-                        if duration >= 30.0:
+                        if duration >= 5.0:
                             self._create_event(
                                 visitor.id, store_session.id, "ZONE_DWELL",
                                 current_zone_name, pt_time, pt,

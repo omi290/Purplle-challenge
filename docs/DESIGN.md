@@ -21,106 +21,33 @@
 
 ## 🏗️ 2. Comprehensive System Architecture
 
-The application is structured as a robust, Dockerized retail intelligence stack. Below is the system blueprint:
+The application is structured as a robust, Dockerized monolith utilizing three isolated and cached container stages:
 
-```mermaid
-graph TD
-    subgraph Edge Video Capture
-        V[Raw CCTV Video Clip] -->|Frame Arrays| YOLO[YOLOv8 Nano Person Filter]
-        YOLO -->|Detections| BT[ByteTrack Association]
-        BT -->|Tracks| Staff[Staff Hue Filter & Vote]
-    end
-
-    subgraph FastAPI Core Backend
-        Staff -->|Track Detections| EE[Stateful Event Engine]
-        XLSX[Store Layout Excel] -->|Parsed Polygons| EE
-        EE -->|ENTRY / DWELL / QUEUE Events| DB[(PostgreSQL 16 Database)]
-        POS[POS Sales CSV] -->|Receipt Transactions| POS_I[POS Importer]
-        POS_I -->|Sync Orders| DB
-        
-        DB -->|Metrics Context| AE[Stateful Anomaly Engine]
-        AE -->|Metrics Context| Gemini[Gemini 1.5 Flash API]
-        Gemini -->|AI Explanation & Actions| DB
-    end
-
-    subgraph React Dashboard Console
-        API[FastAPI Router Endpoints] -->|JSON Metrics Payload + trace_id| Dashboard[Glassmorphic UI Console]
-        DB -->|Query Results| API
-    end
 ```
-
----
-
-## 🔄 3. Flow Specifications
-
-### 3.1 Data Flow Loop
-The diagram below maps the dynamic flow of data from ingestion uploads to frontend rendering:
-
-```mermaid
-sequenceDiagram
-    participant Judge as Purplle Judge (UI)
-    participant API as FastAPI Ingestion Router
-    participant DB as PostgreSQL Database
-    participant CV as YOLOv8 + ByteTrack Pipeline
-    participant EE as Stateful Event Engine
-
-    Judge->>API: Upload POS CSV & Layout XLSX
-    API->>DB: Clear Transaction history & Sync fresh receipt entries
-    Judge->>API: Upload CCTV Video & Trigger Ingestion
-    API->>DB: Sync wipe events, visitors, and sessions tables (Clean slate)
-    API->>CV: Launch background frames decoding
-    CV->>EE: Stream normalized track coordinates (cx, cy)
-    EE->>DB: Write stateful events (ENTRY, ZONE_ENTER, DWELL, QUEUE, EXIT)
-    API->>Judge: Complete task notification & auto UI refresh
-    Judge->>API: GET /api/dashboard
-    API->>DB: Fetch metrics, dynamic funnel stages, & AI store briefing
-    DB->>API: Return SQL aggregates
-    API->>Judge: Render metrics dashboard
-```
-
-### 3.2 AI Integration Flow
-The diagram below details the optional Gemini AI Enhancement Layer with automatic rule-based fallbacks:
-
-```mermaid
-graph TD
-    Trigger[Anomaly Detected in Store] --> CheckKey{GEMINI_API_KEY set?}
-    CheckKey -->|YES| CallGemini[Call Gemini 1.5 Flash API via REST HTTP]
-    CheckKey -->|NO| Fallback[Execute Local Rule-Based Template Generator]
-    CallGemini --> VerifyJSON{Valid AI JSON response?}
-    VerifyJSON -->|YES| WriteDB[Write AI Explanation & Suggested Action to DB]
-    VerifyJSON -->|NO| LogWarning[Log API failure warning]
-    LogWarning --> Fallback
-    Fallback --> WriteDB
-```
-
-### 3.3 Event Engine Transition Flow
-The state diagram below maps how coordinates are classified into semantic retail events:
-
-```mermaid
-stateDiagram-v2
-    [*] --> ENTRANCE : First seen track point (idx = 0)
-    ENTRANCE --> ENTRY : is_new_visitor == True
-    ENTRANCE --> REENTRY : is_new_visitor == False
-    ENTRY --> BROWSE_ZONE : Cross coordinate threshold into Skincare/Makeup/Hair
-    REENTRY --> BROWSE_ZONE
-    
-    state BROWSE_ZONE {
-        [*] --> ZONE_ENTER
-        ZONE_ENTER --> ZONE_DWELL : Dwell duration >= 5.0 seconds
-        ZONE_DWELL --> ZONE_EXIT : Cross coordinate threshold out of zone
-    }
-    
-    BROWSE_ZONE --> BILLING_ZONE : Cross coordinate threshold into Billing
-    
-    state BILLING_ZONE {
-        [*] --> BILLING_QUEUE_JOIN
-        BILLING_QUEUE_JOIN --> BILLING_QUEUE_ABANDON : Exit zone without cashier transaction timestamp
-    }
-    
-    BILLING_ZONE --> EXIT_ZONE : Cross coordinate threshold into Exit
-    BROWSE_ZONE --> EXIT_ZONE
-    EXIT_ZONE --> EXIT : Trajectory track ends
-    EXIT --> [*]
+               +--------------------------------------------+
+               |                  React SPA                 |
+               |           Vite-compiled UI Client         |
+               +---------------------+----------------------+
+                                     |
+                                     | REST HTTP (JSON) + trace_id
+                                     v
+               +---------------------+----------------------+
+               |             FastAPI Backend                |
+               |         Asynchronous Web Server            |
+               +----------+----------------------+----------+
+                          |                      |
+                          | Scoped Connections  | Spawns Background Task
+                          v                      v
+               +----------+----------+  +--------+----------+
+               |       PostgreSQL    |  | YOLOv8 + ByteTrack|
+               |     Transactional   |  | Edge Detection    |
+               +---------------------+  +--------+----------+
+                                                 |
+                                                 | Trajectory Point Events
+                                                 v
+                                        +--------+----------+
+                                        |    Event Engine   |
+                                        +-------------------+
 ```
 
 ---
@@ -133,7 +60,7 @@ We employ **YOLOv8 Nano (`yolov8n.pt`)** optimized for high-throughput edge CPU 
 * **Skip-Frame Optimization:** We skip every 5 frames (`settings.FPS_SKIP = 5`). Instead of running deep neural network inference on all 25 frames per second, we process only 5 frames per second. This reduces CPU computation by 80% while retaining spatial tracking continuity.
 
 ### 3.2 Tracking Architecture (ByteTrack)
-To maintain unique identities across heavy occlusions, we implement the **ByteTrack** multi-object association algorithm.
+To maintain unique customer identifiers over multiple minutes without double-counting, we implement the **ByteTrack** multi-object association algorithm.
 
 #### Mathematical Foundation: Kalman Filter state Estimation
 The tracker models visitor motion in a 2D space. The state vector $x$ representing the shopper's bounding box is defined as:
@@ -184,7 +111,7 @@ The Event Engine ([event_engine.py](file:///c:/Users/omp72/OneDrive/Desktop/Purp
 ## 👥 5. Advanced AI Components
 
 ### 5.1 Staff Filter Hue Mask Heuristics
-To prevent store employees from skewing customer metrics, we deploy a color hue detection engine:
+To prevent store employees from distorting your customer conversion funnel or dwell logs, we deploy a color hue detection engine:
 1. **HSV Cropping:** Detections are cropped and resized to $50\times100$ pixels.
 2. **Color Masking:** We convert the crop to the Hue-Saturation-Value (HSV) space. We apply a color threshold matching the Purplle uniform (Hue 100-130, Saturation 50-255, Value 50-255).
 3. **Trajectory Voting:** Frame-level classifications are noisy due to lighting variations. We apply a majority voting algorithm across the entire track:
@@ -198,7 +125,7 @@ Instead of basic text strings, floor interventions are written as structured, se
   "recommendation": "Deploy express checkout counter 3 immediately.",
   "confidence_score": 0.94,
   "reasoning": "Billing queue wait times have exceeded 312 seconds with high abandonment risks.",
-  "expected_business_impact": "Saves up to ₹8,500 in potential checkout abandonments."
+  "expected_business_impact": "Reduces billing queue abandonment by up to 15%."
 }
 ```
 This is decoded by the React dashboard to display expandable accordion drawers with reasoning metrics.

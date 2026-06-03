@@ -27,8 +27,6 @@ def get_revenue_leakage_metrics(db: Session) -> dict:
     aov = 0.0
     if total_orders > 0:
         aov = total_sales / total_orders
-    else:
-        aov = 450.0  # Fallback Purplle national cosmetics average purchase value
 
     # 2. Lost Customers (checkout abandonments today)
     lost_customers = db.query(Event).join(Visitor, Event.visitor_id == Visitor.id).filter(

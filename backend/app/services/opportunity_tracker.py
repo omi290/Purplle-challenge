@@ -99,8 +99,8 @@ def get_opportunity_loss_metrics(db: Session) -> dict:
         "total_opportunities_lost": unconverted_visitors,
         "estimated_revenue_impact": round(estimated_revenue_opportunity, 2),
         "top_reasons": [
-            "Low conversion rates in Fragrance & Hair zones during evening rushes.",
-            "High drop-off in Skincare zone due to insufficient advisors.",
-            "Queue abandonment (estimated 8.2%) during peak billing hours."
-        ]
+            f"Queue abandonment (estimated {abandonment_rate*100:.1f}%) during peak billing hours." if abandonment_penalty > 0 else "Billing queues are running at optimal speed.",
+            f"Low customer engagement in {low_dwell_zones_count} browse zones, indicating need for advisors." if dwell_penalty > 0 else "Dwell times indicate high shopper interest in products.",
+            f"Overall conversion rate ({conversion_rate*100:.1f}%) lags target 35.0%." if conversion_penalty > 0 else "Overall conversion rate meets or exceeds the target."
+        ][:max(1, 3 - (0 if total_penalty > 0 else 2))]
     }

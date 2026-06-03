@@ -36,8 +36,8 @@ def get_default_zones() -> List[Zone]:
         Zone("Exit", "exit", 0.7, 0.0, 1.0, 0.3),
         Zone("Skincare", "browse", 0.0, 0.3, 0.5, 0.7),
         Zone("Makeup", "browse", 0.5, 0.3, 1.0, 0.7),
-        Zone("Fragrance & Hair", "browse", 0.0, 0.7, 0.5, 1.0),
-        Zone("Billing", "billing", 0.5, 0.7, 1.0, 1.0)
+        Zone("Fragrance & Hair", "browse", 0.0, 0.7, 0.35, 1.0),
+        Zone("Billing", "billing", 0.35, 0.7, 1.0, 1.0)
     ]
 
 def parse_store_layout(file_path: str) -> List[Zone]:

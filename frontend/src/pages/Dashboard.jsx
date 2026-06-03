@@ -71,6 +71,30 @@ export default function Dashboard({ onUploadClick }) {
         </div>
       )}
 
+      {/* AI Executive Briefing */}
+      {data?.ai_store_summary && (
+        <div className="p-6 mb-8 bg-[#111927]/60 border border-[#223049] rounded-2xl backdrop-blur-xl">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse"></span>
+            <span className="text-xs uppercase font-extrabold tracking-widest text-purple-400">AI Store Intelligence briefing</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="p-4 bg-[#182235]/40 border border-[#263753] rounded-xl">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Operational Status</span>
+              <p className="text-sm text-slate-200 font-medium">{data.ai_store_summary.summary}</p>
+            </div>
+            <div className="p-4 bg-rose-950/20 border border-rose-500/20 rounded-xl">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-rose-400 block mb-1">Risk Assessment</span>
+              <p className="text-sm text-rose-200 font-medium">{data.ai_store_summary.risks}</p>
+            </div>
+            <div className="p-4 bg-emerald-950/20 border border-emerald-500/20 rounded-xl">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 block mb-1">Growth Opportunities</span>
+              <p className="text-sm text-emerald-200 font-medium">{data.ai_store_summary.opportunities}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1. Metric Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <MetricCard
