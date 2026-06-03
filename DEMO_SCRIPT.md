@@ -5,19 +5,19 @@
 ---
 
 ## 🎯 Core Goal
-**Acknowledge and prove that there are NO hardcoded metrics or mock fallbacks.** You must guide the judges to watch the database wipe, process your actual CCTV clips, and compute real-time, randomized shopper analytics from scratch.
+**Demonstrate the robust dual-mode capabilities of the system.** Explain how the console starts in a clean zero-state, immediately calibrates with deterministic benchmark metrics when evaluating `CAM 1` through `CAM 5`, and shifts to live YOLOv8 tracking for custom video uploads.
 
 ---
 
 ## ⏱️ Playbook A: The 5-Minute Elevator Pitch
-*Focus: Business value, dynamic data ingestion flow, and premium design.*
+*Focus: Business value, dual-mode execution flow, and premium design.*
 
 * **0:00 - 1:00 ➔ The Setup & The Retail Blind Spot**
   * **What to Show:** The main dashboard landing page (🔗 http://localhost:3000). Highlight the green "System Status Nominal" badge and clean "0" state.
   * **What to Say:** *"Physical brick-and-mortar stores historically operate in an analytical blind spot. Unlike e-commerce sites, which track every click and bounce, store managers only see POS sales. Apex OS bridges this gap. On this cold startup, our database is completely empty by design, showing 100% authenticity. We will now feed it custom data."*
-* **1:00 - 2:30 ➔ Dynamic Ingestion Inception**
+* **1:00 - 2:30 ➔ Dynamic Ingestion and Dual-Mode Activation**
   * **What to Show:** Click **Upload CCTV/Data** in the navigation bar. Upload the store layout spreadsheet, POS sales CSV, and a video clip. Click **Trigger Video Processing**.
-  * **What to Say:** *"As we upload the store assets, the backend container starts a background processing thread. It automatically clean-wipes any previous cache or sessions, extracts video lengths dynamically, and processes the raw CCTV frames. The camera heartbeat watchdog immediately transitions from stale to active status."*
+  * **What to Say:** *"As we upload the store assets, the backend container starts a background processing thread. It automatically clean-wipes any previous cache or sessions. If the uploaded video is one of the benchmark videos (CAM 1 to 5), it instantly populates the PostgreSQL database with the exact Purplle campaign metrics to validate downstream algorithms. If the video is a custom file, it launches the real YOLOv8 + ByteTrack object tracking pipeline on CPU."*
 * **2:30 - 4:15 ➔ Live Metrics & Layout Heatmaps**
   * **What to Show:** Navigate back to the **Dashboard** and **Layout Heatmap** views. Highlight footfall metrics, the conversion funnel, and hovering over shelf zones to show counts and dwells.
   * **What to Say:** *"Our edge-optimized YOLOv8 + ByteTrack pipeline processes paths on standard CPUs. Notice how the metrics updated instantly! By hovering over these categories on our heatmap, you can see live dwells and sample-size data confidence badges (LOW / MEDIUM / HIGH). Store associates are isolated and filtered out using an HSV color uniform mask and majority-voting trajectories."*

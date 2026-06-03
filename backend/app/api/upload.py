@@ -28,6 +28,13 @@ def upload_video(file: UploadFile = File(...)):
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
+        # Save original filename to a text file for campaign detection
+        name_path = os.path.join(settings.UPLOAD_DIR, "original_video_name.txt")
+        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+        with open(name_path, "w") as f:
+            f.write(file.filename)
+
+        
         size = os.path.getsize(file_path)
         logger.info(f"Successfully uploaded video to {file_path} (size: {size} bytes)")
         
@@ -124,3 +131,51 @@ def trigger_full_processing(background_tasks: BackgroundTasks, db: Session = Dep
         "video_file": os.path.basename(video_path),
         "layout_file": os.path.basename(layout_path)
     }
+
+@router.get("/status")
+def get_processing_status():
+    """
+    Queries whether CV background processing is currently running.
+    """
+    lock_path = os.path.join(settings.UPLOAD_DIR, "processing.lock")
+    return {"processing": os.path.exists(lock_path)}
+
+@router.post("/reset")
+def reset_database(db: Session = Depends(get_db)):
+    """
+    Wipes all SQL tables to restore clean zero-state dashboard.
+    """
+    try:
+        from app.models.visitor import Visitor
+        from app.models.session import Session as StoreSession
+        from app.models.event import Event
+        from app.models.anomaly import Anomaly
+        from app.models.transaction import Transaction
+        from app.models.metrics_cache import MetricsCache
+        
+        logger.info("Wiping database tables via user request reset endpoint...")
+        db.query(Event).delete()
+        db.query(Anomaly).delete()
+        db.query(StoreSession).delete()
+        db.query(Visitor).delete()
+        db.query(Transaction).delete()
+        db.query(MetricsCache).delete()
+        db.commit()
+        
+        # Delete original video filename file if exists to clear campaign mapping
+        name_path = os.path.join(settings.UPLOAD_DIR, "original_video_name.txt")
+        if os.path.exists(name_path):
+            try:
+                os.remove(name_path)
+                logger.info("Cleared original_video_name.txt campaign cache.")
+            except Exception as fe:
+                logger.warning(f"Failed to remove original_video_name.txt: {fe}")
+                
+        logger.info("Database reset to zero-state successfully.")
+        return {"status": "success", "message": "Database tables cleared."}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to reset database: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+

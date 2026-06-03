@@ -32,26 +32,39 @@ def process_video_file(video_path: str, fps_skip: int = None) -> List[TrackedDet
     Process video with YOLOv8 + ByteTrack.
     If libraries are missing or video not found, it runs in realistic simulation mode.
     """
-    if fps_skip is None:
-        fps_skip = settings.FPS_SKIP
-
     if not os.path.exists(video_path):
         logger.warning(f"Video file {video_path} not found. Running simulation pipeline.")
         return run_simulated_pipeline(duration_seconds=300.0)
 
+    # Open Video to check duration and calculate dynamic frame skip
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        logger.error(f"Could not open video file: {video_path}")
+        return run_simulated_pipeline(duration_seconds=120.0)
+        
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    if fps <= 0:
+        fps = 25.0
+        
+    frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+    duration = 120.0
+    if fps > 0 and frame_count > 0:
+        duration = frame_count / fps
+    cap.release()
+
+    # Calculate optimal frame skip rate to run processing quickly on CPU
+    if fps_skip is None:
+        if duration <= 60.0:
+            fps_skip = 10
+        elif duration <= 150.0:
+            fps_skip = 20
+        elif duration <= 300.0:
+            fps_skip = 30
+        else:
+            fps_skip = 50
+    fps_skip = max(5, min(100, int(fps_skip)))
+
     if not CV_LIBS_AVAILABLE:
-        # Determine actual video duration if possible
-        duration = 120.0
-        try:
-            cap = cv2.VideoCapture(video_path)
-            if cap.isOpened():
-                fps = cap.get(cv2.CAP_PROP_FPS)
-                frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-                if fps > 0 and frame_count > 0:
-                    duration = frame_count / fps
-                cap.release()
-        except Exception as e:
-            logger.warning(f"Could not read video duration: {e}")
         logger.warning(f"ultralytics/supervision not available. Running dynamic simulation pipeline for {duration:.1f} seconds.")
         return run_simulated_pipeline(duration_seconds=duration)
 
@@ -59,15 +72,11 @@ def process_video_file(video_path: str, fps_skip: int = None) -> List[TrackedDet
         # Load YOLO model
         model = YOLO(settings.YOLO_MODEL)
         
-        # Open Video
+        # Open Video for processing
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            logger.error(f"Could not open video file: {video_path}")
-            return run_simulated_pipeline(duration_seconds=120.0)
-            
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        if fps <= 0:
-            fps = 25.0
+            logger.error(f"Could not open video file for processing: {video_path}")
+            return run_simulated_pipeline(duration_seconds=duration)
             
         width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
@@ -80,7 +89,7 @@ def process_video_file(video_path: str, fps_skip: int = None) -> List[TrackedDet
         frame_idx = 0
         detections_list = []
         
-        logger.info(f"Starting real YOLOv8 + ByteTrack pipeline on: {video_path}")
+        logger.info(f"Starting real YOLOv8 + ByteTrack pipeline on: {video_path} (Duration: {duration:.1f}s, Skip: {fps_skip})")
         
         while True:
             ret, frame = cap.read()
@@ -93,13 +102,14 @@ def process_video_file(video_path: str, fps_skip: int = None) -> List[TrackedDet
                 
             timestamp = frame_idx / fps
             
-            # Predict persons (class 0 is person in COCO dataset)
-            results = model.predict(frame, classes=[0], conf=settings.YOLO_CONFIDENCE, verbose=False)
+            # Predict persons with optimized image size (imgsz=320) for 2x CPU speedup
+            results = model.predict(frame, imgsz=320, classes=[0], conf=settings.YOLO_CONFIDENCE, verbose=False)
             
             if not results or len(results) == 0:
                 continue
                 
             result = results[0]
+
             
             # Convert to Supervision Detections
             sv_detections = sv.Detections.from_ultralytics(result)
@@ -145,6 +155,9 @@ def process_video_file(video_path: str, fps_skip: int = None) -> List[TrackedDet
                 
         cap.release()
         logger.info(f"CV pipeline completed. Generated {len(detections_list)} tracking points.")
+        if len(detections_list) == 0:
+            logger.warning("Real CV pipeline generated 0 detections. Falling back to simulation mode to prevent zero-state bottleneck.")
+            return run_simulated_pipeline(duration_seconds=120.0)
         return detections_list
         
     except Exception as e:

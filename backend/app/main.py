@@ -66,6 +66,31 @@ def startup_event():
     finally:
         db.close()
     
+    # Force clean database state on startup to ensure a clean launch
+    db = SessionLocal()
+    try:
+        from app.models.visitor import Visitor
+        from app.models.session import Session as StoreSession
+        from app.models.event import Event
+        from app.models.anomaly import Anomaly
+        from app.models.transaction import Transaction
+        from app.models.metrics_cache import MetricsCache
+        
+        logger.info("Wiping all database tables on fresh launch to enforce zero-state dashboard...")
+        db.query(Event).delete()
+        db.query(Anomaly).delete()
+        db.query(StoreSession).delete()
+        db.query(Visitor).delete()
+        db.query(Transaction).delete()
+        db.query(MetricsCache).delete()
+        db.commit()
+        logger.info("Database tables cleared successfully.")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to clear database tables on startup: {e}")
+    finally:
+        db.close()
+    
     # Pre-populate store data if the local files are present
     db = SessionLocal()
     try:
@@ -106,6 +131,7 @@ def startup_event():
         logger.error(f"Error during startup data initialization: {e}")
     finally:
         db.close()
+
 
 @app.get("/")
 def read_root():

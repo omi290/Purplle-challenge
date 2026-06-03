@@ -58,13 +58,15 @@ export default function MetricCard({ title, value, change, icon: Icon, color, tr
         <div>
           <h3 className="text-3xl font-extrabold text-white tracking-tight leading-none">{value}</h3>
           
-          <div className="flex items-center gap-2 mt-2">
-            <span className={`flex items-center text-xs font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-              {isPositive ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-              <span>{Math.abs(change)}%</span>
-            </span>
-            <span className="text-[10px] text-gray-500 font-medium">vs yesterday</span>
-          </div>
+          {change !== 0 && change !== undefined && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className={`flex items-center text-xs font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                {isPositive ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                <span>{Math.abs(change)}%</span>
+              </span>
+              <span className="text-[10px] text-gray-500 font-medium">vs yesterday</span>
+            </div>
+          )}
         </div>
 
         {/* Tiny Trend Sparkline */}

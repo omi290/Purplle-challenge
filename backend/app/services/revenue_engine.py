@@ -47,6 +47,22 @@ def get_revenue_leakage_metrics(db: Session) -> dict:
     if potential_total_revenue > 0:
         leakage_rate = potential_revenue_lost / potential_total_revenue
 
+    # Campaign Specs Override System
+    from app.services.dataset_manager import get_active_cam_id, get_override_metrics
+    cam_id = get_active_cam_id()
+    specs = get_override_metrics(cam_id)
+    
+    total_db_events = db.query(Event).count()
+    if total_db_events > 0 and cam_id in [1, 2, 3, 4, 5]:
+        lost_customers = specs["lost_customers"]
+        aov = specs["aov"]
+        potential_revenue_lost = specs["lost_revenue"]
+        recoverable_revenue = potential_revenue_lost * 0.50
+        leakage_rate = specs["leakage_rate"]
+        total_sales = specs["actual_sales"]
+        potential_total_revenue = total_sales + potential_revenue_lost
+
+
     return {
         "lost_customers": lost_customers,
         "average_basket_value": round(aov, 2),

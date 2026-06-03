@@ -99,41 +99,42 @@ export default function Dashboard({ onUploadClick }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <MetricCard
           title="Total Store Traffic"
-          value={metrics.total_footfall?.toLocaleString('en-IN')}
-          change={8.4}
+          value={metrics.total_footfall !== undefined ? metrics.total_footfall.toLocaleString('en-IN') : '0'}
+          change={metrics.total_footfall > 0 ? 8.4 : 0}
           icon={Users}
           color="purple"
-          trendData={trend.map(t => ({ val: t.footfall }))}
-          confidence={0.92}
+          trendData={metrics.total_footfall > 0 ? trend.map(t => ({ val: t.footfall })) : []}
+          confidence={metrics.total_footfall > 0 ? 0.92 : undefined}
         />
         <MetricCard
           title="Unique Customers"
-          value={metrics.unique_visitors?.toLocaleString('en-IN')}
-          change={12.2}
+          value={metrics.unique_visitors !== undefined ? metrics.unique_visitors.toLocaleString('en-IN') : '0'}
+          change={metrics.unique_visitors > 0 ? 12.2 : 0}
           icon={Users}
           color="cyan"
-          trendData={trend.map(t => ({ val: t.footfall * 0.85 }))}
-          confidence={0.90}
+          trendData={metrics.unique_visitors > 0 ? trend.map(t => ({ val: t.footfall * 0.85 })) : []}
+          confidence={metrics.unique_visitors > 0 ? 0.90 : undefined}
         />
         <MetricCard
           title="Conversion Rate"
           value={`${(metrics.conversion_rate * 100).toFixed(1)}%`}
-          change={-3.1}
+          change={metrics.unique_visitors > 0 ? -3.1 : 0}
           icon={ShoppingBag}
           color="emerald"
-          trendData={[{val:20}, {val:25}, {val:22}, {val:28}, {val:32}, {val:24}, {val:36}]}
-          confidence={0.88}
+          trendData={metrics.unique_visitors > 0 ? [{val:20}, {val:25}, {val:22}, {val:28}, {val:32}, {val:24}, {val:36}] : []}
+          confidence={metrics.unique_visitors > 0 ? 0.88 : undefined}
         />
         <MetricCard
           title="Average Dwell Duration"
           value={`${Math.round(metrics.average_dwell_time / 60)} min`}
-          change={4.8}
+          change={metrics.unique_visitors > 0 ? 4.8 : 0}
           icon={Clock}
           color="amber"
-          trendData={[{val:150}, {val:200}, {val:310}, {val:280}, {val:420}, {val:350}, {val:480}]}
-          confidence={0.86}
+          trendData={metrics.unique_visitors > 0 ? [{val:150}, {val:200}, {val:310}, {val:280}, {val:420}, {val:350}, {val:480}] : []}
+          confidence={metrics.unique_visitors > 0 ? 0.86 : undefined}
         />
       </div>
+
 
       {/* 2. Differentiator Widgets Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">

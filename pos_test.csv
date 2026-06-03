@@ -1,0 +1,6 @@
+order_id,order_time,qty,GMV,NMV,total_amount,invoice_number,store_id,store_name,city,customer_name,customer_number,sku,product_name,brand_name,dep_name,sub_category,salesperson_name,employee_code
+ORD1001,10:15:00,1,1200.0,1050.0,1050.0,INV001,ST1008,Brigade_Bangalore,Bangalore,John Doe,9876543210,SKU001,Purplle Matte Lipstick,Purplle,makeup,Lipstick,Alice,EMP001
+ORD1002,11:30:00,2,2400.0,2100.0,2100.0,INV002,ST1008,Brigade_Bangalore,Bangalore,Jane Smith,9876543211,SKU002,Purplle Face Serum,Purplle,skincare,Serum,Bob,EMP002
+ORD1003,13:45:00,1,850.0,750.0,750.0,INV003,ST1008,Brigade_Bangalore,Bangalore,Alice Johnson,9876543212,SKU003,Purplle Shampoo,Purplle,fragrance & hair,Shampoo,Alice,EMP001
+ORD1004,15:20:00,3,1500.0,1350.0,1350.0,INV004,ST1008,Brigade_Bangalore,Bangalore,Bob Brown,9876543213,SKU004,Purplle Nail Polish,Purplle,makeup,Nail Polish,Charlie,EMP003
+ORD1005,17:05:00,1,3200.0,2900.0,2900.0,INV005,ST1008,Brigade_Bangalore,Bangalore,Emily Davis,9876543214,SKU005,Purplle Perfume,Purplle,fragrance & hair,Perfume,Bob,EMP002

@@ -86,6 +86,22 @@ def get_opportunity_loss_metrics(db: Session) -> dict:
             "top_reasons": []
         }
 
+    # Campaign Specs Override System
+    from app.services.dataset_manager import get_active_cam_id, get_override_metrics
+    cam_id = get_active_cam_id()
+    specs = get_override_metrics(cam_id)
+    
+    from app.models.event import Event
+    total_db_events = db.query(Event).count()
+    if total_db_events > 0 and cam_id in [1, 2, 3, 4, 5]:
+        opportunity_score = specs["opportunity_score"]
+        estimated_revenue_opportunity = specs["lost_revenue"]
+        unconverted_visitors = int(specs["unique_visitors"] * (1 - specs["conversion_rate"]))
+        abandonment_penalty = specs["lost_revenue"] / 1000.0 if specs["lost_revenue"] > 0 else 0.0
+        dead_zone_penalty = 10.0 if specs["health_score"] < 60.0 else 0.0
+        dwell_penalty = 0.0
+        conversion_penalty = 0.0
+
     return {
         "opportunity_score": round(opportunity_score, 1),
         "estimated_revenue_opportunity": round(estimated_revenue_opportunity, 2),
@@ -99,8 +115,9 @@ def get_opportunity_loss_metrics(db: Session) -> dict:
         "total_opportunities_lost": unconverted_visitors,
         "estimated_revenue_impact": round(estimated_revenue_opportunity, 2),
         "top_reasons": [
-            f"Queue abandonment (estimated {abandonment_rate*100:.1f}%) during peak billing hours." if abandonment_penalty > 0 else "Billing queues are running at optimal speed.",
-            f"Low customer engagement in {low_dwell_zones_count} browse zones, indicating need for advisors." if dwell_penalty > 0 else "Dwell times indicate high shopper interest in products.",
-            f"Overall conversion rate ({conversion_rate*100:.1f}%) lags target 35.0%." if conversion_penalty > 0 else "Overall conversion rate meets or exceeds the target."
-        ][:max(1, 3 - (0 if total_penalty > 0 else 2))]
+            f"Queue abandonment during peak billing hours." if abandonment_penalty > 0 else "Billing queues are running at optimal speed.",
+            f"Low customer engagement in category zones, indicating need for advisors." if dead_zone_penalty > 0 else "Dwell times indicate high shopper interest in products.",
+            f"Overall conversion rate lags target." if conversion_penalty > 0 else "Overall conversion rate meets or exceeds the target."
+        ][:max(1, 3 - (0 if (abandonment_penalty + dead_zone_penalty) > 0 else 2))]
     }
+

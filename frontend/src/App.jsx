@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Upload, X, CheckCircle, RefreshCw } from 'lucide-react';
 
@@ -9,13 +9,14 @@ import Analytics from './pages/Analytics';
 import AIInsights from './pages/AIInsights';
 import HealthMonitoring from './pages/HealthMonitoring';
 import ExecutiveInsights from './pages/ExecutiveInsights';
-import { uploadVideo, uploadStoreLayout, uploadPosData, triggerProcessing } from './api/client';
+import { uploadVideo, uploadStoreLayout, uploadPosData, triggerProcessing, getProcessingStatus, resetDatabase } from './api/client';
 
 export default function App() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [videoFile, setVideoFile] = useState(null);
   const [layoutFile, setLayoutFile] = useState(null);
   const [posFile, setPosFile] = useState(null);
+  const [initializing, setInitializing] = useState(true);
   
   const [statuses, setStatuses] = useState({
     video: 'idle', // idle, uploading, success, error
@@ -23,6 +24,41 @@ export default function App() {
     pos: 'idle',
     process: 'idle'
   });
+
+  useEffect(() => {
+    const initSession = async () => {
+      const isFirstVisit = !sessionStorage.getItem('apex_visited');
+      if (isFirstVisit) {
+        try {
+          console.log("First visit of browser session. Auto-resetting store console to zero state...");
+          await resetDatabase();
+        } catch (err) {
+          console.error("Failed to auto-reset database on first visit:", err);
+        }
+        sessionStorage.setItem('apex_visited', 'true');
+      }
+      setInitializing(false);
+    };
+    initSession();
+  }, []);
+
+
+  const pollStatus = () => {
+    return new Promise((resolve) => {
+      const interval = setInterval(async () => {
+        try {
+          const res = await getProcessingStatus();
+          if (!res.processing) {
+            clearInterval(interval);
+            resolve();
+          }
+        } catch (err) {
+          clearInterval(interval);
+          resolve(); // Fallback to resolve to prevent lockup
+        }
+      }, 3000);
+    });
+  };
 
   const handleUploadSubmit = async (e) => {
     e.preventDefault();
@@ -64,11 +100,15 @@ export default function App() {
     setStatuses(prev => ({ ...prev, process: 'processing' }));
     try {
       await triggerProcessing();
+      
+      // Wait for background execution to complete
+      await pollStatus();
+      
       setStatuses(prev => ({ ...prev, process: 'success' }));
-      // Reload page after a delay to show updated data
+      // Reload page immediately to show updated data
       setTimeout(() => {
         window.location.reload();
-      }, 15000);
+      }, 1500);
     } catch (err) {
       setStatuses(prev => ({ ...prev, process: 'error' }));
     }
@@ -83,17 +123,33 @@ export default function App() {
     });
     try {
       await triggerProcessing();
+      
+      // Wait for background execution to complete
+      await pollStatus();
+      
       setStatuses(prev => ({ ...prev, process: 'success' }));
       setTimeout(() => {
         window.location.reload();
-      }, 12000);
+      }, 1500);
     } catch (err) {
       setStatuses(prev => ({ ...prev, process: 'success' }));
       setTimeout(() => {
         window.location.reload();
-      }, 12000);
+      }, 1500);
     }
   };
+
+
+  if (initializing) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-[#080d16] text-[#e2e8f0]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-xs uppercase font-bold tracking-widest text-purple-400">Initializing Zero-State Console...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>

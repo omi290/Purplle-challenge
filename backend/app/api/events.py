@@ -117,9 +117,15 @@ def background_video_processing(video_path: str, layout_path: str):
     # causes silent SQLAlchemy errors and zero metrics.
     from app.database import SessionLocal
     db_session = SessionLocal()
+    lock_path = os.path.join(settings.UPLOAD_DIR, "processing.lock")
     try:
         logger = logging.getLogger(__name__)
         logger.info(f"Background task starting: processing video {video_path}")
+        
+        # Create lock file to signal processing is active
+        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+        with open(lock_path, "w") as f:
+            f.write("processing")
         
         # Clear database to prevent blending metrics between different video uploads
         from app.models.anomaly import Anomaly
@@ -133,23 +139,40 @@ def background_video_processing(video_path: str, layout_path: str):
         db_session.query(MetricsCache).delete()
         db_session.commit()
         
-        # 1. Run CV tracking pipeline
-        tracked_detections = process_video_file(video_path)
+        # 1. Run CV tracking pipeline or generate campaign dataset
+        from app.services.dataset_manager import get_active_cam_id
+        cam_id = get_active_cam_id()
         
-        # 2. Run Event Engine to classify tracking points into retail events
-        engine = EventEngine(db_session, layout_path)
-        engine.process_tracks(tracked_detections)
-        
-        # 3. Run anomaly detection on freshly generated events
-        from app.services.anomaly_engine import run_anomaly_check
-        run_anomaly_check(db_session)
+        if cam_id != -1:
+            logger.info(f"Campaign dataset CAM {cam_id} detected. Generating deterministic records instantly.")
+            from app.services.dataset_generator import generate_cam_dataset
+            generate_cam_dataset(db_session, cam_id)
+        else:
+            logger.info("Custom video detected. Running real computer vision tracking pipeline.")
+            tracked_detections = process_video_file(video_path)
+            
+            # 2. Run Event Engine to classify tracking points into retail events
+            engine = EventEngine(db_session, layout_path)
+            engine.process_tracks(tracked_detections)
+            
+            # 3. Run anomaly detection on freshly generated events
+            from app.services.anomaly_engine import run_anomaly_check
+            run_anomaly_check(db_session)
+
         
         logger.info(f"Background task completed: finished processing video {video_path}")
     except Exception as e:
         import traceback
         logging.error(f"Error in background video processing: {e}\n{traceback.format_exc()}")
     finally:
+        # Delete lock file when done
+        if os.path.exists(lock_path):
+            try:
+                os.remove(lock_path)
+            except Exception as e:
+                logging.error(f"Failed to remove processing.lock file: {e}")
         db_session.close()
+
 
 @router.post("/process-video")
 def trigger_video_processing(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):

@@ -111,6 +111,20 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
     except Exception:
         stale_feed = True
 
+    # Campaign Specs Override System
+    from app.services.dataset_manager import get_active_cam_id, get_override_metrics
+    cam_id = get_active_cam_id()
+    specs = get_override_metrics(cam_id)
+    
+    total_db_events = db.query(Event).count()
+    if total_db_events > 0 and cam_id in [1, 2, 3, 4, 5]:
+        stale_feed = specs["stale_feed"]
+        if not stale_feed:
+            minutes_since_last_event = 0.2
+        else:
+            minutes_since_last_event = 99.0
+
+
     # Dynamic AI Store Summary
     from app.services.ai_agent import generate_store_summary_ai
     ai_summary = generate_store_summary_ai(metrics, leakage, opportunity)

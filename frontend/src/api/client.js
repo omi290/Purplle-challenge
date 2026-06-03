@@ -156,6 +156,15 @@ export const triggerProcessing = async () => {
   return res.data;
 };
 
+export const getProcessingStatus = async () => {
+  try {
+    const res = await api.get('/upload/status');
+    return res.data;
+  } catch (err) {
+    return { processing: false };
+  }
+};
+
 export const getRevenueLeakage = async () => {
   try {
     const res = await api.get('/revenue-leakage');
@@ -173,3 +182,10 @@ export const getOpportunityLoss = async () => {
     return zeroDashboard.opportunity_loss;
   }
 };
+
+export const resetDatabase = async () => {
+  const res = await api.post('/upload/reset');
+  return res.data;
+};
+
+
