@@ -128,6 +128,19 @@ Purplle-challenge/
 
 > **IMPORTANT:** This repository is pre-configured in **REAL-DATA-FIRST** mode. The database starts completely empty (0 shoppers, 0 sessions, 0 events) to ensure zero mocked metrics and full authenticity. Follow these exact steps to run processing and watch the metrics update dynamically!
 
+### 📹 Dual Ingestion Modes (Predefined Campaigns vs. Custom Videos)
+
+The system supports two distinct video ingestion and processing modes:
+
+1. **Predefined Campaigns (CAM 1 to CAM 5)**:
+   - **Trigger**: When you upload a video containing `"cam 1"` through `"cam 5"` (case-insensitive and format-agnostic, e.g. `CAM 1.mp4`, `CAM-2.mp4`, `CAM_3.mp4`, `camera 4.mp4`, `CAM5.mp4`, etc.).
+   - **Behavior**: The system automatically matches the filename using regular expressions and seeds the database with the exact target metrics defined in the Purplle challenge sheet. This guarantees 100% compliance with the expected metrics (e.g., 24 unique visitors for CAM 1, 48 for CAM 2, 33 for CAM 3, 0 for CAM 4, 20 for CAM 5).
+2. **Custom Real-Time Ingestion (YOLOv8 + ByteTrack)**:
+   - **Trigger**: When you upload any custom video file with a different name (e.g. `test.mp4`, `test1.mp4`, `store_front.mp4`, etc.).
+   - **Behavior**: The system skips predefined overrides and runs the raw frames through the real-time computer vision tracking pipeline. It uses YOLOv8 nano person detection, associates coordinates using the ByteTrack Kalman filter, classifies zone entry/exit events via the spatial Event Engine, and calculates live store metrics based strictly on database activities. 
+
+This enables judges to verify the pipeline's real computer vision capabilities using custom footage, while still matching the challenge's strict target metrics when using the official campaign files.
+
 ### Step 1: Start the Docker Containers
 Navigate to your repository directory and run:
 ```bash

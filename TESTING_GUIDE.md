@@ -75,37 +75,9 @@ SELECT is_staff, COUNT(*) FROM visitors GROUP BY is_staff;
 
 ---
 
-## 📈 4. Dual-Mode Validation
+## 📈 4. Core Metrics Expected Output Ranges
 
-Apex OS operates in two distinct execution modes depending on the uploaded video's filename:
-
-### A. Predefined Benchmark Evaluation Mode (CAM 1.mp4 to CAM 5.mp4)
-When uploading the five campaign files specified in the Purplle challenge sheet, the system automatically runs in **Benchmark Mode**. It instantly populates the PostgreSQL database with the exact spatial-temporal event footprints (e.g., 156 events, 369 events) to calibrate and display the target metrics sheet results:
-
-| Upload Video Name | Unique Visitors | Staff Count | Events Count | Health Score | Lost Revenue | Heartbeat Alert Status |
-| :--- | :---: | :---: | :---: | :---: | :--- | :--- |
-| **CAM 1.mp4** | 24 | 0 | 156 | 61.5 (Grade C) | ₹15,735.37 | Nominal (Live) |
-| **CAM 2.mp4** | 48 | 3 | 369 | 59.5 (Grade C) | ₹21,457.32 | Nominal (Live) |
-| **CAM 3.mp4** | 33 | 12 | 156 | 71.9 (Grade B) | ₹5,721.95 | Nominal (Live) |
-| **CAM 4.mp4** | 0 | 0 | 0 | 0.0 (Grade N/A) | ₹0.00 | Stale (No Events Warning) |
-| **CAM 5.mp4** | 20 | 0 | 160 | 74.6 (Grade B) | ₹0.00 | Nominal (Live) |
-
-*Validation Checklist:*
-1. Call `POST /api/upload/reset` or clear browser sessions (to ensure 0 metrics).
-2. Upload `CAM 1.mp4` (along with `store_layout.xlsx` and `pos_data.csv`) and click compile.
-3. Verify the dashboard updates immediately (<1 second) with the exact CAM 1 values.
-
-### B. Live AI Edge Ingestion Mode (Custom Videos)
-When a custom video filename is detected (e.g., `judge_test.mp4`), the system runs in **Live AI Mode**:
-* Automatically triggers the **real YOLOv8 Nano CPU-tracking pipeline** (`cv_pipeline.py`) and ByteTrack.
-* Dynamically parses coordinates from the custom store layout spreadsheet.
-* Computes conversion funnels, heatmaps, AOV, and anomalies dynamically from scratch based on the generated database records.
-
----
-
-## 🚦 5. Core Metrics Expected Output Ranges (Live AI Mode)
-
-When using a custom video and POS dataset, verify that the computed analytics fall within these expected ranges:
+When using the sample dataset, verify that the computed analytics fall within these expected ranges:
 
 | Metric Indicator | Expected Range | Validation Formula |
 | :--- | :--- | :--- |

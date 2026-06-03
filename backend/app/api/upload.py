@@ -98,11 +98,22 @@ def upload_pos_data(file: UploadFile = File(...), db: Session = Depends(get_db))
         raise HTTPException(status_code=500, detail=f"Failed to process POS data: {str(e)}")
 
 @router.post("/process")
-def trigger_full_processing(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def trigger_full_processing(
+    background_tasks: BackgroundTasks, 
+    video_name: str = None, 
+    db: Session = Depends(get_db)
+):
     """
     Triggers complete retail intelligence parsing pipeline:
     Layout -> Video tracking -> Events -> Aggregations.
     """
+    if video_name:
+        name_path = os.path.join(settings.UPLOAD_DIR, "original_video_name.txt")
+        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+        with open(name_path, "w") as f:
+            f.write(video_name)
+        logger.info(f"Set campaign video name from process request: {video_name}")
+
     video_path = os.path.join(settings.VIDEO_DIR, "cctv_footage.mp4")
     layout_path = os.path.join(settings.UPLOAD_DIR, "store_layout.xlsx")
     

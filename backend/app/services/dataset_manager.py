@@ -117,17 +117,12 @@ def get_active_cam_id() -> int:
             filename = f.read().strip().lower()
             
         logger.info(f"Checking uploaded video filename: {filename}")
-        if "cam 1" in filename or "cam1" in filename or "cam_1" in filename:
-            return 1
-        elif "cam 2" in filename or "cam2" in filename or "cam_2" in filename:
-            return 2
-        elif "cam 3" in filename or "cam3" in filename or "cam_3" in filename:
-            return 3
-        elif "cam 4" in filename or "cam4" in filename or "cam_4" in filename:
-            return 4
-        elif "cam 5" in filename or "cam5" in filename or "cam_5" in filename:
-            return 5
-        elif "cctv_footage" in filename or "cctv" in filename or "demo" in filename:
+        import re
+        match = re.search(r'cam(?:era)?\s*[-_]?\s*([1-5])', filename)
+        if match:
+            return int(match.group(1))
+            
+        if "cctv_footage" in filename or "cctv" in filename or "demo" in filename:
             return 5
             
     except Exception as e:

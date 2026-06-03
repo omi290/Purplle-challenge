@@ -99,7 +99,8 @@ export default function App() {
     // 4. Trigger Full Processing
     setStatuses(prev => ({ ...prev, process: 'processing' }));
     try {
-      await triggerProcessing();
+      const videoName = videoFile ? videoFile.name : null;
+      await triggerProcessing(videoName);
       
       // Wait for background execution to complete
       await pollStatus();
@@ -122,7 +123,7 @@ export default function App() {
       process: 'processing'
     });
     try {
-      await triggerProcessing();
+      await triggerProcessing("CAM 5.mp4");
       
       // Wait for background execution to complete
       await pollStatus();

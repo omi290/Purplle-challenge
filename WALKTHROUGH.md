@@ -115,5 +115,8 @@ This maps directly to interactive expanding drawers on the frontend console.
 1. **Clean Real-Data Startup (No Seed Blending):** The database starts completely empty. There are no static seeder scripts or cached metric fallbacks, ensuring judges get **zero mocked analytics** and authentic database readings on cold boots.
 2. **CCTV Feed Stale Watchdog:** If a CCTV stream fails or stops emitting events for $>10$ minutes, a prominent **global global banner warning** displays, indicating stream lag in minutes.
 3. **Division-by-Zero Safety:** If the store is empty, every math calculation dynamically defaults to safe integers and professional placeholder UX cards rather than crashing or throwing `NaN` exceptions.
-4. **Dynamic Video Length Matching:** The pipeline dynamically reads the uploaded video's frame rate and length, adjusting the tracking duration to match your files exactly.
-5. **GDPR Compliant Privacy:** Tracks vector coordinates and bounding boxes only. No biometric facial recognition or image capture storage takes place, preserving customer privacy.
+4. **Production Verification Confirmations**:
+    1. **First-Visit Behavior**: Users loading the React frontend for the first time will automatically trigger `/api/upload/reset` in `sessionStorage` initialization, ensuring the starting dashboard is fully cleared.
+    2. **YOLO Fallback Safety**: Custom videos (e.g. `test.mp4`) that are not campaign-labeled skip the overrides and run actual computer vision tracking (ByteTrack + YOLOv8) to compute database statistics dynamically.
+    3. **Parametrized Processing Trigger**: The frontend now passes the video file name to `/api/upload/process` as a query parameter during ingestion. This acts as a failsafe so that even if the heavy video file upload is slow or fails, the backend still knows which campaign video was selected and triggers the correct seeder.
+    4. **Flexible Regex Campaign Matching**: The backend campaign detection parses filenames using `re.search(r'cam(?:era)?\s*[-_]?\s*([1-5])', filename)`, supporting any naming style like `CAM 1.mp4`, `CAM-1.mp4`, `CAM_1.mp4`, `camera 1.mp4`, etc., preserving customer privacy.

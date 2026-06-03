@@ -131,7 +131,8 @@ export const uploadVideo = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
   return api.post('/upload/video', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 0 // Disable timeout for large video files
   });
 };
 
@@ -139,7 +140,8 @@ export const uploadStoreLayout = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
   return api.post('/upload/store-layout', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 0 // Disable timeout for uploads
   });
 };
 
@@ -147,12 +149,15 @@ export const uploadPosData = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
   return api.post('/upload/pos-data', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 0 // Disable timeout for uploads
   });
 };
 
-export const triggerProcessing = async () => {
-  const res = await api.post('/upload/process');
+export const triggerProcessing = async (videoName) => {
+  const res = await api.post('/upload/process', null, {
+    params: videoName ? { video_name: videoName } : {}
+  });
   return res.data;
 };
 
