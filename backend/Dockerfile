@@ -29,5 +29,5 @@ RUN mkdir -p /data/videos /data/uploads
 # Expose port
 EXPOSE 8000
 
-# Run with uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Run with uvicorn dynamically binding to the port assigned by the cloud environment
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
